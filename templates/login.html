@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login · WeightFlow</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="login-page">
+  <main class="login-card">
+    <div class="login-brand"><span>W</span><div><strong>WeightFlow</strong><small>Operator console</small></div></div>
+    <div><p class="eyebrow">SECURE ACCESS</p><h1>Welcome back</h1><p class="subtitle">Sign in to continue to the weighing system.</p></div>
+    {% if error %}<div class="login-error">{{ error }}</div>{% endif %}
+    <form method="post" class="login-form">
+      <div class="field"><label for="username">Username</label><input id="username" name="username" autocomplete="username" required autofocus></div>
+      <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required></div>
+      <button class="primary" type="submit">Sign in</button>
+    </form>
+  </main><script src="{{ url_for('static', filename='keyboard.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Serial Raw Data Monitor</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/"><span>W</span><strong>WeightFlow</strong></a>
+    <nav>
+      {% if can_access('main') %}<a class="nav-link" href="/"><span>⌂</span>Main Screen</a>{% endif %}
+      <a class="nav-link active" href="/communication"><span>⌁</span>Communication Settings</a>
+      {% if can_access('products') %}<a class="nav-link" href="/images"><span>▧</span>Product Master</a>{% endif %}
+      {% if can_access('logs') %}<a class="nav-link" href="/logs"><span>≡</span>Logs</a>{% endif %}
+      {% if is_admin %}<a class="nav-link" href="/users"><span>♙</span>Users</a>{% endif %}
+      <form class="logout-form" action="/logout" method="post"><button type="submit">↪ Logout</button></form>
+    </nav>
+  </aside>
+  <main class="shell with-sidebar">
+    <header>
+      <div>
+        <p class="eyebrow">SERIAL CONSOLE</p>
+        <h1>Raw Data Monitor</h1>
+        <p class="subtitle">Inspect every byte from your weighing indicator in real time.</p>
+      </div>
+      <div class="status disconnected" id="status"><span></span><strong>Disconnected</strong></div>
+    </header>
+
+    <section class="panel controls">
+      <div class="field port-field">
+        <label for="port">Serial port</label>
+        <div class="port-row">
+          <input id="port" list="ports" placeholder="/dev/ttyUSB0" value="/dev/ttyUSB0">
+          <datalist id="ports"></datalist>
+          <button class="icon-button" id="refresh" title="Refresh ports" aria-label="Refresh ports">↻</button>
+        </div>
+      </div>
+      <div class="field"><label for="baud">Baud</label><select id="baud"><option>1200</option><option>2400</option><option>4800</option><option selected>9600</option><option>19200</option><option>38400</option><option>57600</option><option>115200</option></select></div>
+      <div class="field"><label for="bits">Data bits</label><select id="bits"><option>5</option><option>6</option><option>7</option><option selected>8</option></select></div>
+      <div class="field"><label for="parity">Parity</label><select id="parity"><option value="none">None</option><option value="even">Even</option><option value="odd">Odd</option><option value="mark">Mark</option><option value="space">Space</option></select></div>
+      <div class="field"><label for="stop">Stop bits</label><select id="stop"><option selected>1</option><option>1.5</option><option>2</option></select></div>
+      <div class="field"><label for="read-timeout">Read timeout (s)</label><input id="read-timeout" type="number" min="0.1" max="30" step="0.1" value="1"></div>
+      <div class="field"><label>Created by</label><input value="{{ current_username }}" readonly></div>
+      <div class="control-actions">
+        <button class="save-button" id="save-settings">Save</button>
+        <button class="primary" id="connect">Connect</button>
+      </div>
+    </section>
+
+    <section class="stats">
+      <div><span>Frames</span><strong id="frame-count">0</strong></div>
+      <div><span>Bytes received</span><strong id="byte-count">0</strong></div>
+      <div><span>Latest frame</span><strong id="latest">—</strong></div>
+    </section>
+
+    <section class="panel weight-panel">
+      <div class="weight-config">
+        <div>
+          <p class="eyebrow">PARSED OUTPUT</p>
+          <h2>Live weight</h2>
+        </div>
+        <div class="field"><label for="start-marker">Start character</label><input id="start-marker" value="$" maxlength="8"></div>
+        <div class="field"><label for="end-marker">End character</label><input id="end-marker" value="]" maxlength="8"></div>
+        <div class="field"><label for="start-address">Start address</label><input id="start-address" type="number" min="1" value="5"></div>
+        <div class="field"><label for="end-address">End address</label><input id="end-address" type="number" min="1" value="10"></div>
+      </div>
+      <div class="weight-display">
+        <span id="live-weight">------</span>
+        <small id="weight-state">Waiting for a matching value</small>
+      </div>
+      <div class="parse-preview"><span>Selected data</span><code id="selected-data">—</code></div>
+    </section>
+
+    <section class="panel terminal-panel">
+      <div class="toolbar">
+        <div class="tabs"><button class="tab active" data-view="text">Text</button><button class="tab" data-view="hex">Hex</button><button class="tab" data-view="bytes">Decimal bytes</button></div>
+        <div class="tools"><label><input type="checkbox" id="autoscroll" checked> Auto-scroll</label><button class="ghost" id="copy">Copy</button><button class="ghost danger" id="clear">Clear</button></div>
+      </div>
+      <div class="terminal" id="terminal"><div class="empty" id="empty"><div class="pulse"></div><p>Connect a device to begin reading raw data</p></div></div>
+      <div class="error" id="error" hidden></div>
+    </section>
+    <p class="footnote">Frames end at CR/LF; continuous and undelimited data is handled automatically.</p>
+  </main>
+  <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capture Logs</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/"><span>W</span><strong>WeightFlow</strong></a>
+    <nav>{% if can_access('main') %}<a class="nav-link" href="/"><span>⌂</span>Main Screen</a>{% endif %}{% if can_access('communication') %}<a class="nav-link" href="/communication"><span>⌁</span>Communication Settings</a>{% endif %}{% if can_access('products') %}<a class="nav-link" href="/images"><span>▧</span>Product Master</a>{% endif %}<a class="nav-link active" href="/logs"><span>≡</span>Logs</a>{% if is_admin %}<a class="nav-link" href="/users"><span>♙</span>Users</a>{% endif %}<form class="logout-form" action="/logout" method="post"><button type="submit">↪ Logout</button></form></nav>
+  </aside>
+  <main class="shell with-sidebar logs-screen">
+    <div class="logs-heading"><div><p class="eyebrow">CAPTURE HISTORY</p><h1>Captured Image Logs</h1></div><div class="log-count"><span>Total</span><strong id="log-count">0</strong></div></div>
+    <section class="panel logs-panel">
+      <div class="logs-table-wrap">
+        <table class="logs-table">
+          <thead><tr><th>#</th><th>Image</th><th>Product name</th><th>Weight</th><th>Captured by</th><th>Captured date and time</th>{% if is_admin %}<th>Actions</th>{% endif %}</tr></thead>
+          <tbody id="logs-body"><tr><td colspan="{{ 7 if is_admin else 6 }}" class="logs-empty">Loading capture logs…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="log-pagination">
+        <button type="button" id="previous-page">← Previous</button>
+        <span>Page <strong id="current-page">1</strong> of <strong id="total-pages">1</strong></span>
+        <button type="button" id="next-page">Next →</button>
+      </div>
+      <div class="logs-error" id="logs-error" hidden></div>
+    </section>
+  </main>
+  {% if is_admin %}
+  <dialog class="edit-log-dialog" id="edit-log-dialog">
+    <form id="edit-log-form">
+      <div class="dialog-title"><h2>Edit capture log</h2><button type="button" id="close-log-dialog">×</button></div>
+      <input type="hidden" id="edit-log-id">
+      <div class="field"><label for="edit-log-name">Product name</label><input id="edit-log-name" required></div>
+      <div class="field"><label for="edit-log-weight">Captured weight</label><input id="edit-log-weight" required></div>
+      <div class="field"><label for="edit-log-time">Capture date and time</label><input id="edit-log-time" type="datetime-local" step="0.001" required></div>
+      <div class="form-message" id="edit-log-error" hidden></div>
+      <div class="dialog-actions"><button type="button" id="cancel-log-edit">Cancel</button><button class="primary" type="submit">Save changes</button></div>
+    </form>
+  </dialog>
+  {% endif %}
+  <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
+  <script>window.LOG_ADMIN = {{ 'true' if is_admin else 'false' }};</script>
+  <script src="{{ url_for('static', filename='capture_logs.js') }}"></script>
+  <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
+</body>
+</html>

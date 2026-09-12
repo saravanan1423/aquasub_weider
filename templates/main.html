@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Main Screen</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/"><span>W</span><strong>WeightFlow</strong></a>
+    <nav>{% if can_access('main') %}<a class="nav-link active" href="/"><span>⌂</span>Main Screen</a>{% endif %}{% if can_access('communication') %}<a class="nav-link" href="/communication"><span>⌁</span>Communication Settings</a>{% endif %}{% if can_access('products') %}<a class="nav-link" href="/images"><span>▧</span>Product Master</a>{% endif %}{% if can_access('logs') %}<a class="nav-link" href="/logs"><span>≡</span>Logs</a>{% endif %}{% if is_admin %}<a class="nav-link" href="/users"><span>♙</span>Users</a>{% endif %}<form class="logout-form" action="/logout" method="post"><button type="submit">↪ Logout</button></form></nav>
+  </aside>
+  <main class="shell with-sidebar main-screen">
+    <div class="main-live-bar">
+      <div class="main-inline-weight"><span>LIVE WEIGHT</span><strong id="main-live-weight">------</strong><small class="weight-unit">kg</small></div>
+      <div class="status connecting" id="main-status"><span></span><strong>Connecting…</strong></div>
+      <small id="main-weight-message">Waiting for scale data</small>
+    </div>
+    <div class="capture-message" id="capture-message" hidden></div>
+
+    <section class="panel product-selector">
+      <div class="selector-title compact-selector-title"><strong id="product-count">0</strong></div>
+      <div class="main-product-grid" id="main-product-grid"><p class="gallery-empty">Loading product images…</p></div>
+    </section>
+
+  </main>
+  <div class="capture-success-screen" id="capture-success-screen" hidden>
+    <img id="success-image" alt="Selected product">
+    <div class="success-check">✓</div>
+    <p>WEIGHT CAPTURED SUCCESSFULLY</p>
+    <h2 id="success-name">—</h2>
+    <div class="success-weight-line"><strong id="success-weight">—</strong><small>kg</small></div>
+    <time id="success-time">—</time>
+    <small>Returning to products in <strong id="success-countdown">10</strong> seconds</small>
+    <button class="cancel-capture-button" id="cancel-capture-button" type="button">Cancel capture</button>
+  </div>
+  <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
+  <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
+</body>
+</html>
