@@ -121,6 +121,25 @@ button:hover { border-color:#48635b; }.primary { border:0; min-width:118px; colo
   .keyboard-row button { height:33px; }
 }
 @media (min-width:760px) and (max-width:900px) and (max-height:550px) {
+  .sidebar nav { gap:3px; }
+  .sidebar nav > .nav-link:not([href="/"]):not([href="/logs"]) { flex:none; width:40px; min-width:40px; padding:0; justify-content:center; font-size:0; }
+  .sidebar nav > .nav-link:not([href="/"]):not([href="/logs"]) > span:first-child { font-size:18px; }
+  .sidebar nav .device-nav-link .device-nav-label { display:none; }
+  .sidebar nav > .nav-link[href="/"],.sidebar nav > .nav-link[href="/logs"] { flex:none; padding-inline:8px; }
+  .sidebar nav > .current-shift-badge { max-width:100px; }
+  .main-product-grid { grid-auto-rows:160px; }
+  .main-product-grid .product-choice { height:160px; }
+  .main-product-grid .product-choice img { height:122px; }
+  .main-product-grid .product-choice span { height:38px; padding:10px; }
+  .create-user-form { padding:10px; gap:6px; }
+  .create-user-form h2 { font-size:18px; }
+  .create-user-form > .field input { height:34px; }
+  .create-user-form fieldset { grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; padding:7px; }
+  .create-user-form fieldset label { font-size:10px; line-height:1.2; }
+  .shell:has(.controls) > header { margin-bottom:12px; }
+  .shell:has(.controls) > header h1 { font-size:28px; }
+  .shell:has(.controls) > header .subtitle { display:none; }
+  .shell .controls { padding:12px; gap:8px; }
   .login-page:has(.screen-keyboard:not([hidden])) { display:flex; align-items:center; justify-content:flex-start; padding:10px; }
   .login-page:has(.screen-keyboard:not([hidden])) .login-card { width:calc(48vw - 20px); padding:12px; gap:8px; }
   .login-page:has(.screen-keyboard:not([hidden])) .login-card h1 { font-size:25px; }
