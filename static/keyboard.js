@@ -1,4 +1,45 @@
 (() => {
+  const logoutForm = document.querySelector(".logout-form");
+  let shiftLogoutTimer = null;
+  let shiftEndsAt = null;
+  let loggingOut = false;
+  function logoutAtShiftEnd() {
+    if (loggingOut || !shiftEndsAt || Date.now() < shiftEndsAt) return;
+    loggingOut = true;
+    logoutForm.submit();
+  }
+  function scheduleShiftLogout() {
+    clearTimeout(shiftLogoutTimer);
+    if (!shiftEndsAt) return;
+    shiftLogoutTimer = setTimeout(logoutAtShiftEnd, Math.max(0, shiftEndsAt - Date.now()));
+  }
+  async function updateCurrentShift() {
+    if (!logoutForm) return;
+    try {
+      const response = await fetch("/api/current-shift", {cache:"no-store"});
+      if (response.status === 401) { window.location.assign("/login"); return; }
+      if (!response.ok) return;
+      const shift = await response.json();
+      shiftEndsAt = shift.session_ends_at ? Date.parse(shift.session_ends_at) : null;
+      if (shiftEndsAt && Date.now() >= shiftEndsAt) { logoutAtShiftEnd(); return; }
+      scheduleShiftLogout();
+      if (document.documentElement.dataset.admin === "true") return;
+      let badge = document.querySelector(".current-shift-badge");
+      if (!badge) {
+        badge = document.createElement("div"); badge.className = "current-shift-badge";
+        logoutForm.parentNode.insertBefore(badge, logoutForm);
+      }
+      if (!shift.active) { badge.textContent = "No active shift"; badge.classList.add("inactive"); return; }
+      badge.classList.remove("inactive");
+      badge.textContent = shift.name;
+    } catch { /* Keep the main workflow available if shift status cannot be loaded. */ }
+  }
+  updateCurrentShift();
+  setInterval(updateCurrentShift, 30000);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) { logoutAtShiftEnd(); if (!loggingOut) updateCurrentShift(); }
+  });
+
   let target = null;
   let shifted = false;
   let specialMode = false;

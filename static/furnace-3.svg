@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-labelledby="title">
+  <title>Furnace 3</title>
+  <defs>
+    <linearGradient id="body" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#445c56"/>
+      <stop offset="1" stop-color="#0c1513"/>
+    </linearGradient>
+    <radialGradient id="heat" cx=".5" cy=".55" r=".6">
+      <stop offset="0" stop-color="#fff7c2"/>
+      <stop offset=".4" stop-color="#ff9b38"/>
+      <stop offset="1" stop-color="#37120d"/>
+    </radialGradient>
+  </defs>
+  <rect width="320" height="220" fill="#07100f"/>
+  <rect x="54" y="24" width="212" height="172" rx="22" fill="url(#body)" stroke="#56786d" stroke-width="8"/>
+  <rect x="82" y="58" width="156" height="104" rx="10" fill="url(#heat)" stroke="#141f1b" stroke-width="8"/>
+  <path d="M101 151c29-25 20-46 51-82 9 27 41 35 59 82z" fill="#ffb647"/>
+  <path d="M134 151c14-19 15-34 35-56 7 19 23 31 28 56z" fill="#fff0aa"/>
+  <path d="M74 178h172" stroke="#4de3a4" stroke-width="12" stroke-linecap="round"/>
+</svg>

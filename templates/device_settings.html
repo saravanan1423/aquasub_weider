@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Device Settings</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/"><span>W</span><strong>WeightFlow</strong></a>
+    <nav>
+      <a class="nav-link" href="/communication"><span>C</span>Communication Settings</a>
+      <a class="nav-link" href="/shifts"><span>S</span>Shift Settings</a>
+      <a class="nav-link" href="/melt-settings"><span>M</span>Melt Number Settings</a>
+      <a class="nav-link" href="/images"><span>P</span>Product Master</a>
+      <a class="nav-link" href="/users"><span>U</span>Users</a>
+      <a class="nav-link" href="/"><span>H</span>Main Screen</a>
+      <a class="nav-link" href="/logs"><span>L</span>Logs</a>
+      <form class="logout-form" action="/logout" method="post"><button type="submit">Logout</button></form>
+    </nav>
+  </aside>
+  <main class="shell with-sidebar device-settings-page">
+    <header><h1>Device Settings</h1></header>
+    <section class="panel device-settings-panel">
+      <form class="device-settings-form" id="device-settings-form">
+        <div class="field"><label for="pi-serial">Raspberry Pi serial number</label><input id="pi-serial" readonly value="Loading..."></div>
+        <div class="field"><label for="device-id">Device ID</label><input id="device-id" name="device_id" type="text" inputmode="numeric" pattern="[0-9]{5}" minlength="5" maxlength="5" autocomplete="off" required></div>
+        <div class="field"><label for="device-location">Located at</label><input id="device-location" name="location" maxlength="120" autocomplete="off" required></div>
+        <div class="field"><label for="installed-date">Installed date</label><input id="installed-date" name="installed_date" type="date" required></div>
+        <div class="device-settings-actions"><div class="form-message" id="device-settings-message" role="status" hidden></div><button class="primary" type="submit">Save</button></div>
+      </form>
+    </section>
+  </main>
+  <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
+  <script src="{{ url_for('static', filename='device_settings.js') }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='3') }}" data-admin="true"></script>
+  <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
+</body>
+</html>

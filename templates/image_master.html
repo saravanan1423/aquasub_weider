@@ -7,19 +7,23 @@
 <body>
   <aside class="sidebar">
     <a class="brand" href="/"><span>W</span><strong>WeightFlow</strong></a>
-    <nav>{% if can_access('main') %}<a class="nav-link" href="/"><span>⌂</span>Main Screen</a>{% endif %}{% if can_access('communication') %}<a class="nav-link" href="/communication"><span>⌁</span>Communication Settings</a>{% endif %}<a class="nav-link active" href="/images"><span>▧</span>Product Master</a>{% if can_access('logs') %}<a class="nav-link" href="/logs"><span>≡</span>Logs</a>{% endif %}{% if is_admin %}<a class="nav-link" href="/users"><span>♙</span>Users</a>{% endif %}<form class="logout-form" action="/logout" method="post"><button type="submit">↪ Logout</button></form></nav>
+    <nav>{% if can_access('main') %}<a class="nav-link" href="/"><span>⌂</span>Main Screen</a>{% endif %}{% if can_access('communication') %}<a class="nav-link" href="/communication"><span>⌁</span>Communication Settings</a>{% endif %}{% if can_access('shifts') %}<a class="nav-link" href="/shifts"><span>S</span>Shift Settings</a>{% endif %}{% if can_access('melts') %}<a class="nav-link" href="/melt-settings"><span>M</span>Melt Number Settings</a>{% endif %}<a class="nav-link active" href="/images"><span>▧</span>Product Master</a>{% if can_access('logs') %}<a class="nav-link" href="/logs"><span>≡</span>Logs</a>{% endif %}{% if is_admin %}<a class="nav-link" href="/users"><span>♙</span>Users</a>{% endif %}<form class="logout-form" action="/logout" method="post"><button type="submit">↪ Logout</button></form></nav>
   </aside>
-  <main class="shell with-sidebar">
-    <header><div><p class="eyebrow">MASTER DATA</p><h1>Product Master</h1><p class="subtitle">Upload and manage product images.</p></div></header>
+  <main class="shell with-sidebar product-master-page">
+    <header><h1>Product Master</h1></header>
     <section class="image-layout">
       <form class="panel upload-form" id="upload-form">
-        <h2>New product image</h2>
+        <h2 id="form-title">New image</h2>
+        <div class="form-grid">
+          <div class="field"><label for="image-type">Record type *</label><select id="image-type" name="image_type" required><option value="furnace">Furnace (master)</option><option id="product-type-option" value="product">Product</option></select></div>
+          <div class="field" id="furnace-field" hidden><label for="furnace-id">Parent furnace *</label><select id="furnace-id" name="furnace_id"></select></div>
+        </div>
         <label class="drop-zone" for="image-file">
-          <input type="file" id="image-file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" required>
+          <input type="file" id="image-file" name="image" accept="image/*" required>
           <img id="preview" alt="Image preview" hidden>
-          <div id="drop-message"><strong>Choose an image</strong><span>JPG, PNG, WEBP or GIF · maximum 10 MB</span></div>
+          <div id="drop-message"><strong>Choose an image</strong><span>JPG, PNG, WEBP, GIF, BMP or AVIF · maximum 25 MB</span></div>
         </label>
-        <div class="field"><label for="image-name">Image name *</label><input id="image-name" name="image_name" maxlength="120" required placeholder="Example: Pump housing"></div>
+        <div class="field"><label for="image-name" id="image-name-label">Furnace name *</label><input id="image-name" name="image_name" maxlength="120" required placeholder="Example: Furnace 1"></div>
         <div class="field"><label for="description">Description (optional)</label><textarea id="description" name="description" rows="4" maxlength="1000" placeholder="Add image details"></textarea></div>
         <div class="form-grid">
           <div class="field"><label>Capture date and time</label><input id="capture-time" readonly></div>
@@ -29,13 +33,14 @@
         <div class="image-form-actions"><button class="ghost" type="button" id="cancel-edit" hidden>Cancel</button><button class="primary" type="submit" id="upload-button">Save image</button></div>
       </form>
       <section class="panel gallery-panel">
-        <div class="gallery-title"><div><p class="eyebrow">STORED IMAGES</p><h2>Product images</h2></div><strong id="image-count">0</strong></div>
+        <div class="gallery-title"><div><p class="eyebrow">FURNACE MASTER</p><h2>Furnaces and products</h2></div><strong id="image-count">0</strong></div>
         <div class="gallery" id="gallery"><p class="gallery-empty">No images uploaded yet.</p></div>
       </section>
     </section>
   </main>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
-  <script src="{{ url_for('static', filename='image_master.js') }}"></script>
+  <script src="{{ url_for('static', filename='image_master.js', v='5') }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='2') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>
 </html>

@@ -1,8 +1,9 @@
+from datetime import datetime
 from flask import jsonify, redirect, render_template, request, session, url_for
 
 from core.database import database_connection
 
-SCREENS = {"main", "communication", "products", "logs"}
+SCREENS = {"main", "communication", "shifts", "melts", "products", "logs"}
 
 
 def current_user_access():
@@ -20,15 +21,22 @@ def required_permissions():
     path, method = request.path, request.method
     if path == "/": return {"main"}
     if path == "/communication": return {"communication"}
+    if path == "/shifts": return {"shifts"}
+    if path == "/melt-settings": return {"melts"}
     if path == "/images": return {"products"}
     if path == "/logs": return {"logs"}
-    if path == "/users" or path.startswith("/api/users") or path == "/api/change-password": return {"admin"}
+    if path in {"/users", "/device-settings", "/api/device-settings"} or path.startswith("/api/users") or path in {"/api/change-password", "/api/rustdesk/open"}: return {"admin"}
     if path.endswith("/cancel") and path.startswith("/api/weight-captures/"): return {"main"}
     if path.startswith("/api/weight-captures/"): return {"admin"}
     if path == "/api/weight-captures": return {"main"} if method == "POST" else {"logs"}
+    if path == "/api/melts/complete": return {"main"}
+    if path in {"/api/capture-report", "/api/capture-report-options"}: return {"logs"}
     if path == "/api/product-images": return {"main", "products"} if method == "GET" else {"products"}
     if path.startswith("/api/product-images/"): return {"products"}
     if path == "/api/settings": return {"communication"} if method == "POST" else {"main", "communication"}
+    if path == "/api/shifts" or path.startswith("/api/shifts/"): return {"shifts"}
+    if path == "/api/current-shift": return set()
+    if path == "/api/melt-number-settings" or path.startswith("/api/melt-number-settings/"): return {"melts"}
     if path in {"/api/connect", "/api/data"}: return {"main", "communication"}
     if path in {"/api/ports", "/api/disconnect", "/api/clear"}: return {"communication"}
     return set()
@@ -37,7 +45,10 @@ def required_permissions():
 def register_auth(app):
     @app.before_request
     def require_login():
-        if request.endpoint in {"admin.login", "static"}: return None
+        if request.endpoint in {"admin.login", "static", "logs.download_shared_report"}: return None
+        shift_ends_at = session.get("shift_ends_at")
+        if shift_ends_at and datetime.now().astimezone() >= datetime.fromisoformat(shift_ends_at):
+            session.clear()
         user, permissions = current_user_access()
         if user is None:
             session.clear()

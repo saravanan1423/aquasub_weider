@@ -1,5 +1,5 @@
 const $ = id => document.getElementById(id);
-const screenOptions = [["main","Main Screen"],["communication","Communication"],["products","Product Master"],["logs","Capture Logs"]];
+const screenOptions = [["main","Main Screen"],["communication","Communication"],["shifts","Shift Settings"],["melts","Melt Number Settings"],["products","Product Master"],["logs","Capture Logs"]];
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, character => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[character])); }
 async function api(url, options={}) { const response=await fetch(url,options); const data=await response.json(); if(!response.ok) throw new Error(data.error||"Request failed"); return data; }
 function message(text,error=false) { const box=$("user-message"); box.hidden=!text; box.className=`form-message ${error?"form-error":"form-success"}`; box.textContent=text; }

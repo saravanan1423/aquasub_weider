@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Melt Number Settings</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/"><span>W</span><strong>WeightFlow</strong></a>
+    <nav>
+      {% if can_access('communication') %}<a class="nav-link" href="/communication"><span>C</span>Communication Settings</a>{% endif %}
+      {% if can_access('shifts') %}<a class="nav-link" href="/shifts"><span>S</span>Shift Settings</a>{% endif %}
+      <a class="nav-link active" href="/melt-settings"><span>M</span>Melt Number Settings</a>
+      {% if can_access('products') %}<a class="nav-link" href="/images"><span>P</span>Product Master</a>{% endif %}
+      {% if is_admin %}<a class="nav-link" href="/users"><span>U</span>Users</a>{% endif %}
+      {% if can_access('main') %}<a class="nav-link" href="/"><span>H</span>Main Screen</a>{% endif %}
+      {% if can_access('logs') %}<a class="nav-link" href="/logs"><span>L</span>Logs</a>{% endif %}
+      <form class="logout-form" action="/logout" method="post"><button type="submit">Logout</button></form>
+    </nav>
+  </aside>
+  <main class="shell with-sidebar melt-settings-page">
+    <header><h1>Melt Number Settings</h1></header>
+    <section class="panel melt-number-settings">
+      <div class="melt-settings-list" id="melt-settings-list"><p class="gallery-empty">Loading furnaces...</p></div>
+      <div class="shift-message" id="melt-settings-message" hidden></div>
+    </section>
+  </main>
+  <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
+  <script src="{{ url_for('static', filename='melt_number_settings.js', v='1') }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='2') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
+  <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
+</body>
+</html>

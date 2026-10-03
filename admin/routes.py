@@ -1,10 +1,16 @@
 import re
 import sqlite3
+import os
+import shutil
+import subprocess
+import sys
 from datetime import datetime
+from pathlib import Path
 from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 from core.auth import SCREENS, current_user_access
 from core.database import database_connection
+from core.shifts import active_shift
 from core.audit import record_changes
 
 admin_bp=Blueprint("admin",__name__)
@@ -17,11 +23,15 @@ def login():
         username=request.form.get("username","").strip(); password=request.form.get("password","")
         with database_connection() as connection: user=connection.execute("SELECT id,username,password_hash,role FROM users WHERE username=?",(username,)).fetchone()
         if user and check_password_hash(user["password_hash"],password):
-            session.clear(); session.update(user_id=user["id"],username=user["username"],role=user["role"]); destination=request.args.get("next","")
+            session.clear(); session.update(user_id=user["id"],username=user["username"],role=user["role"])
+            with database_connection() as connection:
+                shift = active_shift(connection)
+            if shift["active"]: session["shift_ends_at"] = shift["ends_at"]
+            destination=request.args.get("next","")
             if not destination.startswith("/") or destination.startswith("//"):
                 if user["role"]=="admin": destination="/"
                 else:
-                    _,permissions=current_user_access(); destination=next((path for screen,path in (("main","/"),("communication","/communication"),("products","/images"),("logs","/logs")) if screen in permissions),"/login")
+                    _,permissions=current_user_access(); destination=next((path for screen,path in (("main","/"),("communication","/communication"),("products","/images"),("logs","/logs"),("shifts","/shifts"),("melts","/melt-settings")) if screen in permissions),"/login")
             return redirect(destination)
         error="Invalid username or password"
     return render_template("login.html",error=error)
@@ -29,6 +39,114 @@ def login():
 def logout(): session.clear(); return redirect(url_for("admin.login"))
 @admin_bp.get("/users")
 def page(): return render_template("user_management.html",screens=sorted(SCREENS))
+
+
+def raspberry_pi_serial():
+    for path in ("/proc/device-tree/serial-number", "/sys/firmware/devicetree/base/serial-number"):
+        try:
+            serial = Path(path).read_bytes().rstrip(b"\x00").decode("ascii").strip()
+        except (OSError, UnicodeError):
+            continue
+        if re.fullmatch(r"[0-9a-fA-F]{8,16}", serial):
+            return serial
+    try:
+        cpuinfo = Path("/proc/cpuinfo").read_text(encoding="ascii")
+    except (OSError, UnicodeError):
+        return None
+    match = re.search(r"^Serial\s*:\s*([0-9a-fA-F]{8,16})\s*$", cpuinfo, re.MULTILINE)
+    return match.group(1) if match else None
+
+
+@admin_bp.get("/device-settings")
+def device_settings_page():
+    return render_template("device_settings.html")
+
+
+@admin_bp.route("/api/device-settings", methods=["GET", "PUT"])
+def device_settings():
+    with database_connection() as connection:
+        row = connection.execute(
+            "SELECT device_id, location, installed_date FROM device_settings WHERE id=1"
+        ).fetchone()
+    if request.method == "GET":
+        return jsonify({"pi_serial": raspberry_pi_serial(), **(dict(row) if row else {
+            "device_id": "", "location": "", "installed_date": ""
+        })})
+
+    payload = request.get_json(silent=True) or {}
+    device_id = str(payload.get("device_id", "")).strip()
+    location = str(payload.get("location", "")).strip()
+    installed_date = str(payload.get("installed_date", "")).strip()
+    if not re.fullmatch(r"[0-9]{5}", device_id):
+        return jsonify({"error": "Device ID must be exactly 5 digits"}), 400
+    if not location or len(location) > 120:
+        return jsonify({"error": "Location must be between 1 and 120 characters"}), 400
+    try:
+        if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", installed_date):
+            raise ValueError
+        datetime.strptime(installed_date, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"error": "Enter a valid installation date"}), 400
+    updated_at = datetime.now().astimezone().isoformat(timespec="seconds")
+    with database_connection() as connection:
+        connection.execute("""
+            INSERT INTO device_settings (id, device_id, location, installed_date, updated_at)
+            VALUES (1, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET device_id=excluded.device_id,
+                location=excluded.location, installed_date=excluded.installed_date,
+                updated_at=excluded.updated_at
+        """, (device_id, location, installed_date, updated_at))
+    before = dict(row) if row else {}
+    record_changes("device_settings", 1, "update", before, {
+        "device_id": device_id, "location": location, "installed_date": installed_date
+    })
+    return jsonify({"ok": True, "device_id": device_id, "location": location,
+                    "installed_date": installed_date, "pi_serial": raspberry_pi_serial()})
+
+@admin_bp.post("/api/rustdesk/open")
+def open_rustdesk():
+    if not sys.platform.startswith("linux"):
+        return jsonify({"ok": False, "error": "RustDesk can only be opened on the Raspberry Pi"}), 503
+    environment = os.environ.copy()
+    runtime_dir = Path(environment.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}")
+    if runtime_dir.is_dir():
+        environment["XDG_RUNTIME_DIR"] = str(runtime_dir)
+    if not environment.get("DISPLAY") and not environment.get("WAYLAND_DISPLAY"):
+        wayland_socket = next(
+            (path for path in sorted(runtime_dir.glob("wayland-*")) if path.is_socket()),
+            None,
+        )
+        if wayland_socket:
+            environment["WAYLAND_DISPLAY"] = wayland_socket.name
+        elif Path("/tmp/.X11-unix/X0").exists():
+            environment["DISPLAY"] = ":0"
+        else:
+            return jsonify({"ok": False, "error": "No desktop session is available on this device"}), 503
+    executable = shutil.which("rustdesk")
+    if executable:
+        command = [executable]
+    else:
+        flatpak = shutil.which("flatpak")
+        if not flatpak:
+            return jsonify({"ok": False, "error": "RustDesk is not installed on this device"}), 503
+        try:
+            installed = subprocess.run(
+                [flatpak, "info", "com.rustdesk.RustDesk"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5,
+            ).returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            installed = False
+        if not installed:
+            return jsonify({"ok": False, "error": "RustDesk is not installed on this device"}), 503
+        command = [flatpak, "run", "com.rustdesk.RustDesk"]
+    try:
+        subprocess.Popen(
+            command, env=environment, start_new_session=True,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        return jsonify({"ok": False, "error": "RustDesk could not be opened on this device"}), 503
+    return jsonify({"ok": True, "message": "RustDesk is opening on this device"})
 
 @admin_bp.post("/api/change-password")
 def change_password():

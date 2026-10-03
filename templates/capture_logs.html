@@ -7,15 +7,15 @@
 <body>
   <aside class="sidebar">
     <a class="brand" href="/"><span>W</span><strong>WeightFlow</strong></a>
-    <nav>{% if can_access('main') %}<a class="nav-link" href="/"><span>⌂</span>Main Screen</a>{% endif %}{% if can_access('communication') %}<a class="nav-link" href="/communication"><span>⌁</span>Communication Settings</a>{% endif %}{% if can_access('products') %}<a class="nav-link" href="/images"><span>▧</span>Product Master</a>{% endif %}<a class="nav-link active" href="/logs"><span>≡</span>Logs</a>{% if is_admin %}<a class="nav-link" href="/users"><span>♙</span>Users</a>{% endif %}<form class="logout-form" action="/logout" method="post"><button type="submit">↪ Logout</button></form></nav>
+    <nav>{% if can_access('main') %}<a class="nav-link" href="/"><span>⌂</span>Main Screen</a>{% endif %}{% if can_access('communication') %}<a class="nav-link" href="/communication"><span>⌁</span>Communication Settings</a>{% endif %}{% if can_access('shifts') %}<a class="nav-link" href="/shifts"><span>S</span>Shift Settings</a>{% endif %}{% if can_access('melts') %}<a class="nav-link" href="/melt-settings"><span>M</span>Melt Number Settings</a>{% endif %}{% if can_access('products') %}<a class="nav-link" href="/images"><span>▧</span>Product Master</a>{% endif %}<a class="nav-link active" href="/logs"><span>≡</span>Logs</a>{% if is_admin %}<a class="nav-link" href="/users"><span>♙</span>Users</a>{% endif %}<form class="logout-form" action="/logout" method="post"><button type="submit">↪ Logout</button></form></nav>
   </aside>
   <main class="shell with-sidebar logs-screen">
-    <div class="logs-heading"><div><p class="eyebrow">CAPTURE HISTORY</p><h1>Captured Image Logs</h1></div><div class="log-count"><span>Total</span><strong id="log-count">0</strong></div></div>
+    <div class="logs-heading"><div><p class="eyebrow">CAPTURE HISTORY</p><h1>Melt Logs</h1></div><div class="logs-heading-actions"><button class="primary" id="open-report" type="button">Generate report</button><div class="log-count"><span>Total melts</span><strong id="log-count">0</strong></div></div></div>
     <section class="panel logs-panel">
       <div class="logs-table-wrap">
         <table class="logs-table">
-          <thead><tr><th>#</th><th>Image</th><th>Product name</th><th>Weight</th><th>Captured by</th><th>Captured date and time</th>{% if is_admin %}<th>Actions</th>{% endif %}</tr></thead>
-          <tbody id="logs-body"><tr><td colspan="{{ 7 if is_admin else 6 }}" class="logs-empty">Loading capture logs…</td></tr></tbody>
+          <thead><tr><th>#</th><th>Furnace</th><th>Melt number</th><th>Shift type</th><th>Total weight</th><th>Products</th><th>Captured by</th><th>Last captured</th></tr></thead>
+          <tbody id="logs-body"><tr><td colspan="8" class="logs-empty">Loading melt logs...</td></tr></tbody>
         </table>
       </div>
       <div class="log-pagination">
@@ -39,9 +39,32 @@
     </form>
   </dialog>
   {% endif %}
+  <dialog class="report-dialog" id="report-dialog">
+    <div class="dialog-title"><h2>Generate capture report</h2><button type="button" id="close-report">×</button></div>
+    <form id="report-form" class="report-filters">
+      <div class="field"><label for="report-shift">Shift</label><select id="report-shift"><option value="all">All shifts combined</option></select></div>
+      <div class="field"><label for="report-range-type">Range type</label><select id="report-range-type"><option value="date">Date range</option><option value="custom">Custom date and time</option></select></div>
+      <div class="field"><label for="report-furnace">Furnace</label><select id="report-furnace"><option value="all">All furnaces</option></select></div>
+      <div class="field"><label for="report-from-date">From date</label><input id="report-from-date" type="date" required></div>
+      <div class="field"><label for="report-to-date">To date</label><input id="report-to-date" type="date" required></div>
+      <div class="field report-time-field" hidden><label for="report-start-time">From time</label><input id="report-start-time" type="time" value="00:00"></div>
+      <div class="field report-time-field" hidden><label for="report-end-time">To time</label><input id="report-end-time" type="time" value="23:59"></div>
+      <button class="primary" type="submit">Generate</button>
+    </form>
+    <div class="report-error" id="report-error" hidden></div>
+    <section class="report-preview" id="report-preview" hidden>
+      <div class="report-meta" id="report-meta"></div>
+      <div class="report-qr"><img id="report-qr-image" alt="QR code to download this report"><div><strong>Scan to download report</strong><span>The CSV report downloads automatically on the scanned device. Link expires in 15 minutes.</span><a id="report-download-link" target="_blank" rel="noopener">Open download link</a></div></div>
+      <div class="report-preview-table"><table><thead><tr><th>S.No</th><th>Furnace</th><th>Melt number</th><th>Shift type</th><th>Total weight</th><th>Products</th><th>Captured by</th><th>Last captured</th></tr></thead><tbody id="report-body"></tbody></table></div>
+      <div class="report-summary" id="report-summary"></div>
+      <div class="report-actions"><button class="ghost" id="download-report" type="button">Download CSV</button><button class="primary" id="print-report" type="button">Print / PDF</button></div>
+    </section>
+  </dialog>
+  <iframe id="report-print-frame" title="Printable report" hidden></iframe>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
   <script>window.LOG_ADMIN = {{ 'true' if is_admin else 'false' }};</script>
-  <script src="{{ url_for('static', filename='capture_logs.js') }}"></script>
+  <script src="{{ url_for('static', filename='capture_logs.js', v='3') }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='2') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>
 </html>

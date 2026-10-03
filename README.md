@@ -57,7 +57,9 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Open <http://127.0.0.1:5000>. The page automatically selects the first detected
+The program opens <http://127.0.0.1:5000> in fullscreen automatically. Set
+`WEIGHTFLOW_AUTO_FULLSCREEN=0` before starting it to disable automatic browser
+launching. The page automatically selects the first detected
 `/dev/ttyUSB*` or `/dev/ttyACM*` device. Confirm the settings and click **Connect**.
 
 ## Linux serial-port setup

@@ -10,6 +10,8 @@
   <aside class="sidebar">
     <a class="brand" href="/"><span>W</span><strong>WeightFlow</strong></a>
     <nav>
+      {% if can_access('shifts') %}<a class="nav-link" href="/shifts"><span>S</span>Shift Settings</a>{% endif %}
+      {% if can_access('melts') %}<a class="nav-link" href="/melt-settings"><span>M</span>Melt Number Settings</a>{% endif %}
       {% if can_access('main') %}<a class="nav-link" href="/"><span>⌂</span>Main Screen</a>{% endif %}
       <a class="nav-link active" href="/communication"><span>⌁</span>Communication Settings</a>
       {% if can_access('products') %}<a class="nav-link" href="/images"><span>▧</span>Product Master</a>{% endif %}
@@ -84,7 +86,8 @@
     <p class="footnote">Frames end at CR/LF; continuous and undelimited data is handled automatically.</p>
   </main>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  <script src="{{ url_for('static', filename='app.js', v='2') }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='2') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>
 </html>

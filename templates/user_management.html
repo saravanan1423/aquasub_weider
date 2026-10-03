@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>User Management</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head>
 <body>
-  <aside class="sidebar"><a class="brand" href="/"><span>W</span><strong>WeightFlow</strong></a><nav><a class="nav-link" href="/"><span>⌂</span>Main Screen</a><a class="nav-link" href="/communication"><span>⌁</span>Communication Settings</a><a class="nav-link" href="/images"><span>▧</span>Product Master</a><a class="nav-link" href="/logs"><span>≡</span>Logs</a><a class="nav-link active" href="/users"><span>♙</span>Users</a><form class="logout-form" action="/logout" method="post"><button type="submit">↪ Logout</button></form></nav></aside>
+  <aside class="sidebar"><a class="brand" href="/"><span>W</span><strong>WeightFlow</strong></a><nav><a class="nav-link" href="/"><span>⌂</span>Main Screen</a><a class="nav-link" href="/communication"><span>⌁</span>Communication Settings</a><a class="nav-link" href="/shifts"><span>S</span>Shift Settings</a><a class="nav-link" href="/melt-settings"><span>M</span>Melt Number Settings</a><a class="nav-link" href="/images"><span>▧</span>Product Master</a><a class="nav-link" href="/logs"><span>≡</span>Logs</a><a class="nav-link active" href="/users"><span>♙</span>Users</a><form class="logout-form" action="/logout" method="post"><button type="submit">↪ Logout</button></form></nav></aside>
   <main class="shell with-sidebar users-screen">
     <div class="users-heading"><div><p class="eyebrow">ADMINISTRATION</p><h1>User Management</h1></div></div>
     <section class="users-layout">
@@ -9,7 +9,7 @@
         <h2>Create user</h2>
         <div class="field"><label for="new-username">Username</label><input id="new-username" required minlength="3" maxlength="50" autocomplete="off"></div>
         <div class="field"><label for="new-password">Password</label><input id="new-password" type="password" required minlength="6" autocomplete="new-password"></div>
-        <fieldset><legend>Screen access</legend><label><input type="checkbox" value="main"> Main Screen</label><label><input type="checkbox" value="communication"> Communication Settings</label><label><input type="checkbox" value="products"> Product Master</label><label><input type="checkbox" value="logs"> Capture Logs</label></fieldset>
+        <fieldset><legend>Screen access</legend><label><input type="checkbox" value="main"> Main Screen</label><label><input type="checkbox" value="communication"> Communication Settings</label><label><input type="checkbox" value="shifts"> Shift Settings</label><label><input type="checkbox" value="melts"> Melt Number Settings</label><label><input type="checkbox" value="products"> Product Master</label><label><input type="checkbox" value="logs"> Capture Logs</label></fieldset>
         <div class="form-message" id="user-message" hidden></div><button class="primary" type="submit">Create user</button>
         <div class="password-divider"></div>
         <h2>Change admin password</h2>
@@ -22,6 +22,7 @@
     </section>
   </main>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
-  <script src="{{ url_for('static', filename='user_management.js') }}"></script>
+  <script src="{{ url_for('static', filename='user_management.js', v='2') }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='2') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body></html>

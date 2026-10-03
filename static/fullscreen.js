@@ -1,0 +1,76 @@
+(() => {
+  const isAdmin = document.currentScript?.dataset.admin === "true";
+  document.documentElement.dataset.admin = String(isAdmin);
+  if (!isAdmin) return;
+  const button = document.createElement("button");
+  button.className = "fullscreen-button";
+  button.type = "button";
+
+  function updateButton() {
+    const active = Boolean(document.fullscreenElement);
+    button.textContent = active ? "X" : "[]";
+    button.title = active ? "Exit fullscreen" : "Fullscreen";
+    button.setAttribute("aria-label", active ? "Exit fullscreen" : "Enter fullscreen");
+  }
+
+  button.addEventListener("click", async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch (error) {
+      console.warn("Fullscreen is not available in this browser.", error);
+    }
+  });
+
+  const navigation = document.querySelector(".sidebar nav");
+  if (navigation) {
+    const logoutForm = navigation.querySelector(".logout-form");
+    const deviceLink = document.createElement("a");
+    deviceLink.className = `nav-link device-nav-link${window.location.pathname === "/device-settings" ? " active" : ""}`;
+    deviceLink.href = "/device-settings";
+    deviceLink.title = "Device Settings";
+    deviceLink.setAttribute("aria-label", "Device Settings");
+    deviceLink.innerHTML = '<span aria-hidden="true">D</span><span class="device-nav-label">Device Settings</span>';
+    navigation.insertBefore(deviceLink, navigation.querySelector('a[href="/images"]') || navigation.querySelector('a[href="/users"]') || logoutForm);
+    const rustdeskButton = document.createElement("button");
+    rustdeskButton.className = "rustdesk-launch";
+    rustdeskButton.type = "button";
+    rustdeskButton.title = "Open RustDesk on this device";
+    rustdeskButton.setAttribute("aria-label", rustdeskButton.title);
+    const icon = document.createElement("img");
+    icon.src = "/static/rustdesk-logo.svg";
+    icon.alt = "";
+    rustdeskButton.appendChild(icon);
+    navigation.insertBefore(rustdeskButton, logoutForm);
+
+    const status = document.createElement("div");
+    status.className = "rustdesk-status";
+    status.setAttribute("role", "status");
+    status.hidden = true;
+    document.body.appendChild(status);
+    rustdeskButton.addEventListener("click", async () => {
+      rustdeskButton.disabled = true;
+      status.hidden = true;
+      try {
+        const response = await fetch("/api/rustdesk/open", {method: "POST"});
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Could not open RustDesk");
+        status.className = "rustdesk-status form-success";
+        status.textContent = result.message;
+      } catch (error) {
+        status.className = "rustdesk-status form-error";
+        status.textContent = error.message;
+      } finally {
+        status.hidden = false;
+        rustdeskButton.disabled = false;
+      }
+    });
+    navigation.insertBefore(button, logoutForm);
+  } else {
+    button.classList.add("fullscreen-button-standalone");
+    document.body.appendChild(button);
+  }
+
+  document.addEventListener("fullscreenchange", updateButton);
+  updateButton();
+})();

@@ -1,4 +1,5 @@
 const $ = (id) => document.getElementById(id);
+const POLL_INTERVAL_MS = 1000;
 const state = { connected: false, connecting: false, lastId: 0, frames: [], view: "text", framesTotal: 0, bytesTotal: 0, rawStream: "" };
 
 async function jsonFetch(url, options = {}) {
@@ -152,7 +153,7 @@ async function poll() {
       if ($("autoscroll").checked) $("terminal").scrollTop = $("terminal").scrollHeight;
     }
   } catch (error) { showError(error.message); }
-  setTimeout(poll, 250);
+  setTimeout(poll, POLL_INTERVAL_MS);
 }
 
 $("connect").addEventListener("click", async () => {

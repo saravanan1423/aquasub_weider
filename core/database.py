@@ -30,12 +30,18 @@ def initialize_database(app):
                 id INTEGER PRIMARY KEY AUTOINCREMENT, image_name TEXT NOT NULL,
                 description TEXT, image_url TEXT NOT NULL,
                 stored_filename TEXT NOT NULL UNIQUE, captured_at TEXT NOT NULL,
-                created_by TEXT NOT NULL, created_at TEXT NOT NULL
+                created_by TEXT NOT NULL, created_at TEXT NOT NULL,
+                image_type TEXT NOT NULL DEFAULT 'product',
+                furnace_id INTEGER,
+                melt_start_serial INTEGER NOT NULL DEFAULT 1,
+                FOREIGN KEY(furnace_id) REFERENCES product_images(id)
             );
             CREATE TABLE IF NOT EXISTS weight_captures (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 product_image_id INTEGER NOT NULL, image_name TEXT NOT NULL,
                 image_url TEXT NOT NULL, weight TEXT NOT NULL,
+                furnace_id TEXT, furnace_name TEXT, furnace_image_url TEXT,
+                melt_number TEXT, melt_serial INTEGER, melt_completed_at TEXT,
                 captured_at TEXT NOT NULL,
                 captured_by_user_id INTEGER,
                 captured_by_username TEXT NOT NULL DEFAULT 'Unknown',
@@ -67,6 +73,27 @@ def initialize_database(app):
             );
             CREATE INDEX IF NOT EXISTS idx_audit_logs_changed_at
                 ON audit_logs(changed_at DESC);
+            CREATE TABLE IF NOT EXISTS shifts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                created_by TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS report_downloads (
+                token TEXT PRIMARY KEY,
+                report_json TEXT NOT NULL,
+                download_url TEXT NOT NULL,
+                expires_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS device_settings (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                device_id TEXT NOT NULL,
+                location TEXT NOT NULL,
+                installed_date TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
         """)
         columns = {row[1] for row in connection.execute("PRAGMA table_info(users)")}
         if "role" not in columns:
@@ -76,11 +103,30 @@ def initialize_database(app):
             connection.execute("ALTER TABLE serial_settings ADD COLUMN frame_timeout REAL NOT NULL DEFAULT 1.0")
         if "created_by" not in serial_columns:
             connection.execute("ALTER TABLE serial_settings ADD COLUMN created_by TEXT NOT NULL DEFAULT 'Unknown'")
+        image_columns = {row[1] for row in connection.execute("PRAGMA table_info(product_images)")}
+        if "image_type" not in image_columns:
+            connection.execute("ALTER TABLE product_images ADD COLUMN image_type TEXT NOT NULL DEFAULT 'product'")
+        if "furnace_id" not in image_columns:
+            connection.execute("ALTER TABLE product_images ADD COLUMN furnace_id INTEGER")
+        if "melt_start_serial" not in image_columns:
+            connection.execute("ALTER TABLE product_images ADD COLUMN melt_start_serial INTEGER NOT NULL DEFAULT 1")
         capture_columns = {row[1] for row in connection.execute("PRAGMA table_info(weight_captures)")}
         if "captured_by_user_id" not in capture_columns:
             connection.execute("ALTER TABLE weight_captures ADD COLUMN captured_by_user_id INTEGER")
         if "captured_by_username" not in capture_columns:
             connection.execute("ALTER TABLE weight_captures ADD COLUMN captured_by_username TEXT NOT NULL DEFAULT 'Unknown'")
+        if "furnace_id" not in capture_columns:
+            connection.execute("ALTER TABLE weight_captures ADD COLUMN furnace_id TEXT")
+        if "furnace_name" not in capture_columns:
+            connection.execute("ALTER TABLE weight_captures ADD COLUMN furnace_name TEXT")
+        if "furnace_image_url" not in capture_columns:
+            connection.execute("ALTER TABLE weight_captures ADD COLUMN furnace_image_url TEXT")
+        if "melt_number" not in capture_columns:
+            connection.execute("ALTER TABLE weight_captures ADD COLUMN melt_number TEXT")
+        if "melt_serial" not in capture_columns:
+            connection.execute("ALTER TABLE weight_captures ADD COLUMN melt_serial INTEGER")
+        if "melt_completed_at" not in capture_columns:
+            connection.execute("ALTER TABLE weight_captures ADD COLUMN melt_completed_at TEXT")
         admin = connection.execute("SELECT id, password_hash FROM users WHERE username='admin'").fetchone()
         if admin is None:
             connection.execute(
