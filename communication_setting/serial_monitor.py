@@ -55,7 +55,7 @@ class SerialMonitor:
     def _read_loop(self):
         buffer = bytearray(); last_byte_at = None; frame_started_at = None; config = self.config
         try:
-            self._serial = serial.Serial(port=config["port"], baudrate=config["baud_rate"], bytesize=BYTE_SIZES[config["data_bits"]], parity=PARITIES[config["parity"]], stopbits=STOP_BITS[config["stop_bits"]], timeout=0.1)
+            self._serial = serial.Serial(port=config["port"], baudrate=config["baud_rate"], bytesize=BYTE_SIZES[config["data_bits"]], parity=PARITIES[config["parity"]], stopbits=STOP_BITS[config["stop_bits"]], timeout=0.02)
             with self._lock: self.connected = True; self.connecting = False
             while not self._stop.is_set():
                 waiting = self._serial.in_waiting; chunk = self._serial.read(waiting if waiting else 1)

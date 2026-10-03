@@ -2,25 +2,6 @@
   const isAdmin = document.currentScript?.dataset.admin === "true";
   document.documentElement.dataset.admin = String(isAdmin);
   if (!isAdmin) return;
-  const button = document.createElement("button");
-  button.className = "fullscreen-button";
-  button.type = "button";
-
-  function updateButton() {
-    const active = Boolean(document.fullscreenElement);
-    button.textContent = active ? "X" : "[]";
-    button.title = active ? "Exit fullscreen" : "Fullscreen";
-    button.setAttribute("aria-label", active ? "Exit fullscreen" : "Enter fullscreen");
-  }
-
-  button.addEventListener("click", async () => {
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await document.documentElement.requestFullscreen();
-    } catch (error) {
-      console.warn("Fullscreen is not available in this browser.", error);
-    }
-  });
 
   const navigation = document.querySelector(".sidebar nav");
   if (navigation) {
@@ -65,12 +46,5 @@
         rustdeskButton.disabled = false;
       }
     });
-    navigation.insertBefore(button, logoutForm);
-  } else {
-    button.classList.add("fullscreen-button-standalone");
-    document.body.appendChild(button);
   }
-
-  document.addEventListener("fullscreenchange", updateButton);
-  updateButton();
 })();

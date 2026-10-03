@@ -44,6 +44,8 @@
       <div class="field"><label for="parity">Parity</label><select id="parity"><option value="none">None</option><option value="even">Even</option><option value="odd">Odd</option><option value="mark">Mark</option><option value="space">Space</option></select></div>
       <div class="field"><label for="stop">Stop bits</label><select id="stop"><option selected>1</option><option>1.5</option><option>2</option></select></div>
       <div class="field"><label for="read-timeout">Read timeout (s)</label><input id="read-timeout" type="number" min="0.1" max="30" step="0.1" value="1"></div>
+      <div class="field"><label for="refresh-interval">Refresh (ms)</label><input id="refresh-interval" type="number" min="100" max="2000" step="50" value="200" title="How often the screen checks for a new weight"></div>
+      <div class="field"><label for="frame-gap">Frame gap (ms)</label><input id="frame-gap" type="number" min="50" max="1000" step="50" value="250" title="For scales without line endings; values too low may split a reading"></div>
       <div class="field"><label>Created by</label><input value="{{ current_username }}" readonly></div>
       <div class="control-actions">
         <button class="save-button" id="save-settings">Save</button>
@@ -86,8 +88,8 @@
     <p class="footnote">Frames end at CR/LF; continuous and undelimited data is handled automatically.</p>
   </main>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
-  <script src="{{ url_for('static', filename='app.js', v='2') }}"></script>
-  <script src="{{ url_for('static', filename='fullscreen.js', v='2') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
+  <script src="{{ url_for('static', filename='app.js', v='3') }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='4') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>
 </html>

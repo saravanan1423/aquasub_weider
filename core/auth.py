@@ -23,6 +23,7 @@ def required_permissions():
     if path == "/communication": return {"communication"}
     if path == "/shifts": return {"shifts"}
     if path == "/melt-settings": return {"melts"}
+    if path == "/api/melt-threshold-settings": return {"admin"}
     if path == "/images": return {"products"}
     if path == "/logs": return {"logs"}
     if path in {"/users", "/device-settings", "/api/device-settings"} or path.startswith("/api/users") or path in {"/api/change-password", "/api/rustdesk/open"}: return {"admin"}

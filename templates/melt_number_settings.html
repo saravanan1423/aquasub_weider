@@ -21,13 +21,24 @@
   <main class="shell with-sidebar melt-settings-page">
     <header><h1>Melt Number Settings</h1></header>
     <section class="panel melt-number-settings">
+      {% if is_admin %}
+      <div class="melt-threshold-settings">
+        <h2>Weight thresholds</h2>
+        <form class="melt-threshold-form" id="melt-threshold-form">
+          <div class="field"><label for="individual-threshold">Individual capture limit (kg)</label><input id="individual-threshold" name="individual_threshold_kg" type="number" min="0.001" max="999999999.999" step="0.001"></div>
+          <div class="field"><label for="melt-threshold">Total melt limit (kg)</label><input id="melt-threshold" name="melt_threshold_kg" type="number" min="0.001" max="999999999.999" step="0.001"></div>
+          <button class="primary" type="submit">Save</button>
+        </form>
+        <div class="shift-message" id="melt-threshold-message" role="status" hidden></div>
+      </div>
+      {% endif %}
       <div class="melt-settings-list" id="melt-settings-list"><p class="gallery-empty">Loading furnaces...</p></div>
       <div class="shift-message" id="melt-settings-message" hidden></div>
     </section>
   </main>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
-  <script src="{{ url_for('static', filename='melt_number_settings.js', v='1') }}"></script>
-  <script src="{{ url_for('static', filename='fullscreen.js', v='2') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
+  <script src="{{ url_for('static', filename='melt_number_settings.js', v='2') }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='4') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>
 </html>

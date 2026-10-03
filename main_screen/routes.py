@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from flask import Blueprint, jsonify, render_template, request, session
 from core.database import database_connection
 from core.audit import record_changes
@@ -30,6 +31,26 @@ def numeric_weight(value):
     match = re.search(r"[-+]?\d+(?:\.\d+)?", str(value).replace(",", ""))
     return float(match.group()) if match else 0.0
 
+
+def weight_amount(value):
+    match = re.search(r"[-+]?\d+(?:\.\d+)?", str(value).replace(",", ""))
+    return Decimal(match.group()) if match else None
+
+
+def threshold_setting(value, label):
+    if value is None or str(value).strip() == "":
+        return None
+    text = str(value).strip()
+    if not re.fullmatch(r"\d+(?:\.\d{1,3})?", text):
+        raise ValueError(f"{label} must be a positive kg value with up to 3 decimal places")
+    try:
+        amount = Decimal(text)
+    except InvalidOperation as error:
+        raise ValueError(f"Enter a valid {label.lower()}") from error
+    if not 0 < amount <= Decimal("999999999.999"):
+        raise ValueError(f"{label} must be greater than 0 and at most 999999999.999 kg")
+    return format(amount, "f")
+
 def furnace_prefix(name):
     value = str(name or "").strip()
     trailing = re.search(r"([A-Za-z])\s*$", value)
@@ -56,6 +77,38 @@ def melt_number_settings():
                 "next_melt_number": f'{furnace_prefix(furnace["image_name"])}{next_serial}',
             })
     return jsonify(items)
+
+
+@main_bp.route("/api/melt-threshold-settings", methods=["GET", "PUT"])
+def melt_threshold_settings():
+    with database_connection() as connection:
+        row = connection.execute(
+            "SELECT individual_threshold_kg, melt_threshold_kg FROM melt_threshold_settings WHERE id=1"
+        ).fetchone()
+    if request.method == "GET":
+        return jsonify(dict(row) if row else {"individual_threshold_kg": None, "melt_threshold_kg": None})
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        individual_threshold = threshold_setting(payload.get("individual_threshold_kg"), "Individual threshold")
+        melt_threshold = threshold_setting(payload.get("melt_threshold_kg"), "Total melt threshold")
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
+    updated_at = datetime.now().astimezone().isoformat(timespec="seconds")
+    with database_connection() as connection:
+        connection.execute("""
+            INSERT INTO melt_threshold_settings (
+                id, individual_threshold_kg, melt_threshold_kg, updated_at
+            ) VALUES (1, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                individual_threshold_kg=excluded.individual_threshold_kg,
+                melt_threshold_kg=excluded.melt_threshold_kg,
+                updated_at=excluded.updated_at
+        """, (individual_threshold, melt_threshold, updated_at))
+    before = dict(row) if row else {}
+    after = {"individual_threshold_kg": individual_threshold, "melt_threshold_kg": melt_threshold}
+    record_changes("melt_threshold_settings", 1, "update", before, after)
+    return jsonify({"ok": True, **after})
 
 
 @main_bp.put("/api/melt-number-settings/<int:furnace_id>")
@@ -103,6 +156,9 @@ def create_weight_capture():
     try: furnace_id=int(payload.get("furnace_id"))
     except (TypeError,ValueError): return jsonify({"ok": False, "error": "Select a valid furnace before selecting an image"}), 400
     if not weight or weight == "------": return jsonify({"ok": False, "error": "Wait for a live weight before selecting an image"}), 400
+    amount = weight_amount(weight)
+    if amount is None or amount < 0:
+        return jsonify({"ok": False, "error": "Wait for a valid non-negative weight before selecting an image"}), 400
     with database_connection() as connection:
         connection.execute("BEGIN IMMEDIATE")
         furnace=connection.execute("SELECT id,image_name AS name,image_url,melt_start_serial FROM product_images WHERE id=? AND image_type='furnace'",(furnace_id,)).fetchone()
@@ -118,6 +174,24 @@ def create_weight_capture():
             melt_number = f"{prefix}{melt_serial}"
         elif melt_number != f"{prefix}{melt_serial}":
             return jsonify({"ok": False, "error": "The active melt number does not match this furnace"}), 400
+        settings = connection.execute(
+            "SELECT individual_threshold_kg, melt_threshold_kg FROM melt_threshold_settings WHERE id=1"
+        ).fetchone()
+        if settings and settings["individual_threshold_kg"] is not None:
+            limit = Decimal(settings["individual_threshold_kg"])
+            if amount > limit:
+                return jsonify({"ok": False, "code": "threshold_exceeded", "error":
+                    f"Individual weight {amount} kg exceeds the {limit} kg limit. Contact admin."}), 409
+        if settings and settings["melt_threshold_kg"] is not None:
+            limit = Decimal(settings["melt_threshold_kg"])
+            rows = connection.execute(
+                "SELECT weight FROM weight_captures WHERE furnace_id=? AND melt_number=?",
+                (str(furnace_id), melt_number),
+            ).fetchall()
+            current_total = sum((weight_amount(row["weight"]) or Decimal(0) for row in rows), Decimal(0))
+            if current_total + amount > limit:
+                return jsonify({"ok": False, "code": "threshold_exceeded", "error":
+                    f"Melt {melt_number} would total {current_total + amount} kg, above the {limit} kg limit. Contact admin."}), 409
         captured_at = datetime.now().astimezone().isoformat(timespec="milliseconds")
         cursor = connection.execute("INSERT INTO weight_captures (product_image_id,image_name,image_url,weight,furnace_id,furnace_name,furnace_image_url,melt_number,melt_serial,captured_at,captured_by_user_id,captured_by_username) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (image["id"],image["image_name"],image["image_url"],weight,str(furnace_id),furnace["name"],furnace["image_url"],melt_number,melt_serial,captured_at,session["user_id"],session["username"]))
         totals = melt_totals(connection, furnace_id, melt_number)

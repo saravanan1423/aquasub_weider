@@ -23,6 +23,8 @@ def initialize_database(app):
                 start_marker TEXT NOT NULL, end_marker TEXT NOT NULL,
                 start_address INTEGER NOT NULL, end_address INTEGER NOT NULL,
                 frame_timeout REAL NOT NULL DEFAULT 1.0,
+                refresh_interval_ms INTEGER NOT NULL DEFAULT 200,
+                frame_gap_ms INTEGER NOT NULL DEFAULT 250,
                 created_by TEXT NOT NULL DEFAULT 'Unknown',
                 updated_at TEXT NOT NULL
             );
@@ -52,7 +54,9 @@ def initialize_database(app):
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL,
-                role TEXT NOT NULL DEFAULT 'user', created_at TEXT NOT NULL
+                role TEXT NOT NULL DEFAULT 'user',
+                show_in_login INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS user_permissions (
                 user_id INTEGER NOT NULL, screen TEXT NOT NULL,
@@ -94,13 +98,25 @@ def initialize_database(app):
                 installed_date TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS melt_threshold_settings (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                individual_threshold_kg TEXT,
+                melt_threshold_kg TEXT,
+                updated_at TEXT NOT NULL
+            );
         """)
         columns = {row[1] for row in connection.execute("PRAGMA table_info(users)")}
         if "role" not in columns:
             connection.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
+        if "show_in_login" not in columns:
+            connection.execute("ALTER TABLE users ADD COLUMN show_in_login INTEGER NOT NULL DEFAULT 0")
         serial_columns = {row[1] for row in connection.execute("PRAGMA table_info(serial_settings)")}
         if "frame_timeout" not in serial_columns:
             connection.execute("ALTER TABLE serial_settings ADD COLUMN frame_timeout REAL NOT NULL DEFAULT 1.0")
+        if "refresh_interval_ms" not in serial_columns:
+            connection.execute("ALTER TABLE serial_settings ADD COLUMN refresh_interval_ms INTEGER NOT NULL DEFAULT 200")
+        if "frame_gap_ms" not in serial_columns:
+            connection.execute("ALTER TABLE serial_settings ADD COLUMN frame_gap_ms INTEGER NOT NULL DEFAULT 250")
         if "created_by" not in serial_columns:
             connection.execute("ALTER TABLE serial_settings ADD COLUMN created_by TEXT NOT NULL DEFAULT 'Unknown'")
         image_columns = {row[1] for row in connection.execute("PRAGMA table_info(product_images)")}
@@ -127,13 +143,22 @@ def initialize_database(app):
             connection.execute("ALTER TABLE weight_captures ADD COLUMN melt_serial INTEGER")
         if "melt_completed_at" not in capture_columns:
             connection.execute("ALTER TABLE weight_captures ADD COLUMN melt_completed_at TEXT")
+        device_columns = {row[1] for row in connection.execute("PRAGMA table_info(device_settings)")}
+        # Carry forward limits saved before they moved to Melt Number Settings.
+        if {"individual_threshold_kg", "melt_threshold_kg"} <= device_columns:
+            connection.execute("""
+                INSERT OR IGNORE INTO melt_threshold_settings (
+                    id, individual_threshold_kg, melt_threshold_kg, updated_at
+                ) SELECT 1, individual_threshold_kg, melt_threshold_kg, updated_at
+                  FROM device_settings WHERE id=1
+            """)
         admin = connection.execute("SELECT id, password_hash FROM users WHERE username='admin'").fetchone()
         if admin is None:
             connection.execute(
-                "INSERT INTO users (username,password_hash,role,created_at) VALUES (?,?,?,?)",
-                ("admin", generate_password_hash("admin@123"), "admin", datetime.now().astimezone().isoformat(timespec="seconds")),
+                "INSERT INTO users (username,password_hash,role,show_in_login,created_at) VALUES (?,?,?,?,?)",
+                ("admin", generate_password_hash("admin@123"), "admin", 0, datetime.now().astimezone().isoformat(timespec="seconds")),
             )
         else:
-            connection.execute("UPDATE users SET role='admin' WHERE username='admin'")
+            connection.execute("UPDATE users SET role='admin',show_in_login=0 WHERE username='admin'")
             if check_password_hash(admin["password_hash"], "Admin@123"):
                 connection.execute("UPDATE users SET password_hash=? WHERE username='admin'", (generate_password_hash("admin@123"),))

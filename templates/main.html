@@ -61,10 +61,17 @@
       </div>
     </form>
   </dialog>
+  <dialog class="complete-melt-dialog" id="threshold-dialog" aria-labelledby="threshold-dialog-title" aria-describedby="threshold-dialog-message">
+    <form method="dialog">
+      <h2 id="threshold-dialog-title">Weight limit exceeded</h2>
+      <p id="threshold-dialog-message"></p>
+      <div class="complete-dialog-actions"><button class="primary" type="submit">OK</button></div>
+    </form>
+  </dialog>
   <button class="complete-melt-button" id="complete-melt-button" type="button" hidden>Mark as completed (0)</button>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
-  <script src="{{ url_for('static', filename='main.js', v='3') }}"></script>
-  <script src="{{ url_for('static', filename='fullscreen.js', v='2') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
+  <script src="{{ url_for('static', filename='main.js', v='5') }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='4') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>
 </html>

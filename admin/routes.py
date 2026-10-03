@@ -34,7 +34,12 @@ def login():
                     _,permissions=current_user_access(); destination=next((path for screen,path in (("main","/"),("communication","/communication"),("products","/images"),("logs","/logs"),("shifts","/shifts"),("melts","/melt-settings")) if screen in permissions),"/login")
             return redirect(destination)
         error="Invalid username or password"
-    return render_template("login.html",error=error)
+    with database_connection() as connection:
+        usernames = [row["username"] for row in connection.execute(
+            "SELECT username FROM users WHERE role!='admin' AND show_in_login=1 ORDER BY username COLLATE NOCASE"
+        )]
+    return render_template("login.html", error=error, usernames=usernames,
+                           selected_username=request.form.get("username", ""))
 @admin_bp.post("/logout")
 def logout(): session.clear(); return redirect(url_for("admin.login"))
 @admin_bp.get("/users")
@@ -169,17 +174,19 @@ def permissions(values):
 def users():
     if request.method=="GET":
         with database_connection() as connection:
-            rows=connection.execute("SELECT id,username,role,created_at FROM users ORDER BY role,username").fetchall(); result=[]
+            rows=connection.execute("SELECT id,username,role,show_in_login,created_at FROM users ORDER BY role,username").fetchall(); result=[]
             for user in rows:
-                item=dict(user); item["permissions"]=[row["screen"] for row in connection.execute("SELECT screen FROM user_permissions WHERE user_id=? ORDER BY screen",(user["id"],))]; result.append(item)
+                item=dict(user); item["show_in_login"]=bool(item["show_in_login"]); item["permissions"]=[row["screen"] for row in connection.execute("SELECT screen FROM user_permissions WHERE user_id=? ORDER BY screen",(user["id"],))]; result.append(item)
         return jsonify(result)
     payload=request.get_json(silent=True) or {}; username=str(payload.get("username","")).strip(); password=str(payload.get("password",""))
     try:
         allowed=permissions(payload.get("permissions"))
+        show_in_login=payload.get("show_in_login",False)
+        if not isinstance(show_in_login,bool): raise ValueError("Choose whether to show this user at login")
         if not re.fullmatch(r"[A-Za-z0-9_.-]{3,50}",username): raise ValueError("Username must be 3–50 characters using letters, numbers, dot, dash, or underscore")
         if len(password)<6: raise ValueError("Password must contain at least 6 characters")
         with database_connection() as connection:
-            user_id=connection.execute("INSERT INTO users (username,password_hash,role,created_at) VALUES (?,?,\'user\',?)",(username,generate_password_hash(password),datetime.now().astimezone().isoformat(timespec="seconds"))).lastrowid
+            user_id=connection.execute("INSERT INTO users (username,password_hash,role,show_in_login,created_at) VALUES (?,?,\'user\',?,?)",(username,generate_password_hash(password),int(show_in_login),datetime.now().astimezone().isoformat(timespec="seconds"))).lastrowid
             connection.executemany("INSERT INTO user_permissions (user_id,screen) VALUES (?,?)",[(user_id,screen) for screen in allowed])
     except sqlite3.IntegrityError: return jsonify({"ok":False,"error":"That username already exists"}),409
     except ValueError as error: return jsonify({"ok":False,"error":str(error)}),400
@@ -187,7 +194,7 @@ def users():
 @admin_bp.route("/api/users/<int:user_id>",methods=["PUT","DELETE"])
 def user(user_id):
     with database_connection() as connection:
-        existing=connection.execute("SELECT id,username,role FROM users WHERE id=?",(user_id,)).fetchone()
+        existing=connection.execute("SELECT id,username,role,show_in_login FROM users WHERE id=?",(user_id,)).fetchone()
         old_permissions=[row["screen"] for row in connection.execute("SELECT screen FROM user_permissions WHERE user_id=? ORDER BY screen",(user_id,))]
     if existing is None: return jsonify({"ok":False,"error":"User not found"}),404
     if existing["role"]=="admin": return jsonify({"ok":False,"error":"The administrator account cannot be changed or deleted"}),400
@@ -197,16 +204,18 @@ def user(user_id):
     payload=request.get_json(silent=True) or {}; username=str(payload.get("username","")).strip(); password=str(payload.get("password",""))
     try:
         allowed=permissions(payload.get("permissions"))
+        show_in_login=payload.get("show_in_login",bool(existing["show_in_login"]))
+        if not isinstance(show_in_login,bool): raise ValueError("Choose whether to show this user at login")
         if not re.fullmatch(r"[A-Za-z0-9_.-]{3,50}",username): raise ValueError("Enter a valid username")
         if password and len(password)<6: raise ValueError("Password must contain at least 6 characters")
         with database_connection() as connection:
-            if password: connection.execute("UPDATE users SET username=?,password_hash=? WHERE id=?",(username,generate_password_hash(password),user_id))
-            else: connection.execute("UPDATE users SET username=? WHERE id=?",(username,user_id))
+            if password: connection.execute("UPDATE users SET username=?,password_hash=?,show_in_login=? WHERE id=?",(username,generate_password_hash(password),int(show_in_login),user_id))
+            else: connection.execute("UPDATE users SET username=?,show_in_login=? WHERE id=?",(username,int(show_in_login),user_id))
             connection.execute("DELETE FROM user_permissions WHERE user_id=?",(user_id,)); connection.executemany("INSERT INTO user_permissions (user_id,screen) VALUES (?,?)",[(user_id,screen) for screen in allowed])
     except sqlite3.IntegrityError: return jsonify({"ok":False,"error":"That username already exists"}),409
     except ValueError as error: return jsonify({"ok":False,"error":str(error)}),400
-    before={"username":existing["username"],"permissions":old_permissions}
-    after={"username":username,"permissions":sorted(allowed)}
+    before={"username":existing["username"],"permissions":old_permissions,"show_in_login":bool(existing["show_in_login"])}
+    after={"username":username,"permissions":sorted(allowed),"show_in_login":show_in_login}
     if password: before["password"]="protected"; after["password"]="changed"
     record_changes("users",user_id,"update",before,after)
     return jsonify({"ok":True})

@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const POLL_INTERVAL_MS = 1000;
+let pollIntervalMs = 200;
 const state = { connected: false, connecting: false, lastId: 0, frames: [], view: "text", framesTotal: 0, bytesTotal: 0, rawStream: "" };
 
 async function jsonFetch(url, options = {}) {
@@ -31,6 +31,9 @@ async function loadSettings() {
     $("parity").value = saved.parity;
     $("stop").value = saved.stop_bits;
     $("read-timeout").value = saved.frame_timeout ?? 1;
+    $("refresh-interval").value = saved.refresh_interval_ms ?? 200;
+    $("frame-gap").value = saved.frame_gap_ms ?? 250;
+    pollIntervalMs = Number($("refresh-interval").value);
     $("start-marker").value = saved.start_marker;
     $("end-marker").value = saved.end_marker;
     $("start-address").value = saved.start_address;
@@ -55,6 +58,8 @@ function settingsPayload() {
     parity: $("parity").value,
     stop_bits: $("stop").value,
     frame_timeout: $("read-timeout").value,
+    refresh_interval_ms: $("refresh-interval").value,
+    frame_gap_ms: $("frame-gap").value,
     start_marker: $("start-marker").value,
     end_marker: $("end-marker").value,
     start_address: $("start-address").value,
@@ -153,7 +158,7 @@ async function poll() {
       if ($("autoscroll").checked) $("terminal").scrollTop = $("terminal").scrollHeight;
     }
   } catch (error) { showError(error.message); }
-  setTimeout(poll, POLL_INTERVAL_MS);
+  setTimeout(poll, pollIntervalMs);
 }
 
 $("connect").addEventListener("click", async () => {
@@ -164,6 +169,7 @@ $("connect").addEventListener("click", async () => {
     } else {
       const payload = settingsPayload();
       await jsonFetch("/api/connect", {method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(payload)});
+      pollIntervalMs = Number(payload.refresh_interval_ms);
     }
   } catch (error) { showError(error.message); }
 });
@@ -172,7 +178,9 @@ $("save-settings").addEventListener("click", async () => {
   showError();
   const button = $("save-settings");
   try {
-    await jsonFetch("/api/settings", {method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(settingsPayload())});
+    const payload = settingsPayload();
+    await jsonFetch("/api/settings", {method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(payload)});
+    pollIntervalMs = Number(payload.refresh_interval_ms);
     button.textContent = "Saved ✓";
     setTimeout(() => button.textContent = "Save", 1500);
   } catch (error) { showError(error.message); }

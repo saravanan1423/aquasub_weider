@@ -1,16 +1,78 @@
 import csv
 import io
+import ipaddress
 import json
 import re
 import secrets
 import socket
+import struct
+import sys
 from datetime import date, datetime, time, timedelta
+from urllib.parse import urlsplit
 from flask import Blueprint, jsonify, render_template, request, send_file, session
 import qrcode
 from core.database import database_connection
 from core.audit import record_changes
 
 logs_bp = Blueprint("logs", __name__)
+
+
+def usable_ipv4(value):
+    try:
+        address = ipaddress.IPv4Address(value)
+    except (ipaddress.AddressValueError, ValueError):
+        return None
+    if address.is_loopback or address.is_link_local or address.is_multicast or address.is_unspecified:
+        return None
+    return str(address)
+
+
+def network_interface_addresses():
+    if not sys.platform.startswith("linux"):
+        return []
+    import fcntl
+
+    addresses = []
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+        for _, name in socket.if_nameindex():
+            try:
+                details = fcntl.ioctl(probe.fileno(), 0x8915, struct.pack("256s", name[:15].encode()))
+            except OSError:
+                continue
+            address = usable_ipv4(socket.inet_ntoa(details[20:24]))
+            if address:
+                addresses.append((name, address))
+    return addresses
+
+
+def report_share_host():
+    peer = usable_ipv4(request.remote_addr)
+    if peer:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+                probe.connect((peer, 9))
+                address = usable_ipv4(probe.getsockname()[0])
+                if address:
+                    return address
+        except OSError:
+            pass
+
+    requested = usable_ipv4(urlsplit(request.host_url).hostname)
+    if requested:
+        return requested
+
+    try:
+        addresses = network_interface_addresses()
+    except OSError:
+        addresses = []
+    addresses.sort(key=lambda item: (not item[0].startswith(("wlan", "wl", "ap", "uap")), item[0]))
+    if addresses:
+        return addresses[0][1]
+
+    try:
+        return usable_ipv4(socket.gethostbyname(socket.gethostname()))
+    except OSError:
+        return None
 
 @logs_bp.get("/logs")
 def page(): return render_template("capture_logs.html")
@@ -118,13 +180,11 @@ def capture_report():
     range_from=custom_start.isoformat(timespec="minutes") if custom_mode else from_date.isoformat()
     range_to=custom_end.isoformat(timespec="minutes") if custom_mode else to_date.isoformat()
     report={"ok":True,"generated_by":session["username"],"generated_on":datetime.now().astimezone().isoformat(timespec="seconds"),"range_from":range_from,"range_to":range_to,"shift":shift_name,"furnace":furnace_name,"items":melt_items,"summary":list(summary.values()),"total_melts":len(melt_items),"total_products":len(filtered),"total_net_weight":sum(item["numeric_weight"] for item in filtered),"options":{"shifts":[dict(row) for row in shifts],"furnaces":[dict(row) for row in furnaces]}}
+    host = report_share_host()
+    if not host:
+        return jsonify({"ok": False, "error": "No network address is available for report sharing"}), 503
     token=secrets.token_urlsafe(18); expires_at=datetime.now().astimezone()+timedelta(minutes=15)
-    requested_host=request.host; host=requested_host.split(":")[0]
-    if host in {"127.0.0.1","localhost"}:
-        try: host=socket.gethostbyname(socket.gethostname())
-        except OSError: host="127.0.0.1"
-    port=requested_host.rsplit(":",1)[1] if ":" in requested_host else request.environ.get("SERVER_PORT","5000")
-    if host not in {"127.0.0.1","localhost"} and ":" not in requested_host: port=request.environ.get("SERVER_PORT","5000")
+    port=str(urlsplit(request.host_url).port or request.environ.get("SERVER_PORT","5000"))
     authority=f"{host}:{port}" if port not in {"80","443"} else host
     download_url=f"{request.scheme}://{authority}/reports/download/{token}"
     with database_connection() as connection:

@@ -12,6 +12,19 @@ function showMessage(message = "", error = false) {
   element.className = `shift-message ${error ? "form-error" : "form-success"}`;
   element.textContent = message;
 }
+function showThresholdMessage(message = "", error = false) {
+  const element = $("melt-threshold-message");
+  element.hidden = !message;
+  element.className = `shift-message ${error ? "form-error" : "form-success"}`;
+  element.textContent = message;
+}
+async function loadThresholdSettings() {
+  const form = $("melt-threshold-form");
+  if (!form) return;
+  const settings = await jsonFetch("/api/melt-threshold-settings");
+  form.elements.individual_threshold_kg.value = settings.individual_threshold_kg ?? "";
+  form.elements.melt_threshold_kg.value = settings.melt_threshold_kg ?? "";
+}
 async function loadMeltSettings() {
   const furnaces = await jsonFetch("/api/melt-number-settings");
   $("melt-settings-list").innerHTML = furnaces.length ? furnaces.map(furnace => `
@@ -39,3 +52,25 @@ async function loadMeltSettings() {
   }));
 }
 loadMeltSettings().catch(error => showMessage(error.message, true));
+if ($("melt-threshold-form")) {
+  loadThresholdSettings().catch(error => showThresholdMessage(error.message, true));
+  $("melt-threshold-form").addEventListener("submit", async event => {
+    event.preventDefault();
+    showThresholdMessage();
+    const form = event.currentTarget;
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+      await jsonFetch("/api/melt-threshold-settings", {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          individual_threshold_kg: form.elements.individual_threshold_kg.value,
+          melt_threshold_kg: form.elements.melt_threshold_kg.value
+        })
+      });
+      showThresholdMessage("Weight thresholds saved");
+    } catch (error) { showThresholdMessage(error.message, true); }
+    finally { button.disabled = false; }
+  });
+}

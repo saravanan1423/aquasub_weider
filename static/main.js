@@ -1,10 +1,10 @@
 const $ = id => document.getElementById(id);
-const POLL_INTERVAL_MS = 1000;
+let pollIntervalMs = 200;
 const mainState = {lastId: 0, rawStream: "", settings: null, weight: "", connectingAttempted: false, furnace: null, products: [], activeMelt: null};
 let successTimer = null;
 let pendingCaptureId = null;
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
-async function requestJson(url, options = {}) { const response = await fetch(url, options); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Request failed"); return data; }
+async function requestJson(url, options = {}) { const response = await fetch(url, options); const data = await response.json(); if (!response.ok) { const error = new Error(data.error || "Request failed"); error.code = data.code; throw error; } return data; }
 function numericWeight(value) {
   const match = String(value ?? "").replace(/,/g, "").match(/[-+]?\d+(?:\.\d+)?/);
   return match ? Number(match[0]) : 0;
@@ -53,7 +53,7 @@ async function pollScale() {
     }
     if (data.frames.length) parseLiveWeight();
   } catch (error) { setStatus(false, false, error.message); }
-  setTimeout(pollScale, POLL_INTERVAL_MS);
+  setTimeout(pollScale, pollIntervalMs);
 }
 async function loadProducts() {
   mainState.products = (await requestJson("/api/product-images")).filter(item => item.image_type === "product");
@@ -99,7 +99,14 @@ async function captureWeight(button) {
     updateCompleteButtons();
     document.querySelectorAll(".product-choice").forEach(item => item.classList.remove("selected")); button.classList.add("selected");
     showCaptureSuccess(result);
-  } catch (error) { message.className = "capture-message failure"; message.textContent = error.message; message.hidden = false; }
+  } catch (error) {
+    if (error.code === "threshold_exceeded") {
+      $("threshold-dialog-message").textContent = error.message;
+      $("threshold-dialog").showModal();
+    } else {
+      message.className = "capture-message failure"; message.textContent = error.message; message.hidden = false;
+    }
+  }
   finally { button.disabled = false; }
 }
 function showCaptureSuccess(result) {
@@ -203,6 +210,7 @@ async function initializeMain() {
   try {
     mainState.settings = await requestJson("/api/settings");
     if (!mainState.settings.id) throw new Error("Save communication settings before using the Main Screen");
+    pollIntervalMs = Number(mainState.settings.refresh_interval_ms) || 200;
     const status = await requestJson("/api/data?after=0");
     if (!status.connected && !status.connecting) await requestJson("/api/connect", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(mainState.settings)});
   } catch (error) { setStatus(false, false, error.message); }

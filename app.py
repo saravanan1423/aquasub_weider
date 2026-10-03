@@ -97,11 +97,24 @@ def open_fullscreen_browser(url, host, port):
     browser = find_browser()
     if browser:
         name = Path(browser).name.lower()
-        command = [browser, "--kiosk", url] if "firefox" in name else [
-            browser,
-            "--start-fullscreen",
-            f"--app={url}",
-        ]
+        if "firefox" in name:
+            command = [browser, "--kiosk", url]
+        elif "edge" in name:
+            command = [browser, "--start-fullscreen", f"--app={url}"]
+        else:
+            profile = Path(app.instance_path) / "chromium-kiosk-profile"
+            profile.mkdir(parents=True, exist_ok=True)
+            command = [
+                browser,
+                f"--user-data-dir={profile}",
+                "--kiosk",
+                "--incognito",
+                "--no-first-run",
+                "--noerrdialogs",
+                "--disable-infobars",
+                "--disable-session-crashed-bubble",
+                url,
+            ]
         try:
             subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return
