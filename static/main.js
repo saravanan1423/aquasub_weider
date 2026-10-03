@@ -1,6 +1,6 @@
 const $ = id => document.getElementById(id);
 let pollIntervalMs = 200;
-const mainState = {lastId: 0, rawStream: "", settings: null, weight: "", connectingAttempted: false, furnace: null, products: [], activeMelt: null};
+const mainState = {lastId: 0, rawStream: "", settings: null, weight: "", connectingAttempted: false, furnace: null, products: [], activeMelt: null, successSeconds: 10};
 let successTimer = null;
 let pendingCaptureId = null;
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -18,8 +18,6 @@ function updateCompleteButtons() {
   const label = `Mark as completed (${count})`;
   $("complete-melt-button").hidden = !visible;
   $("complete-melt-button").textContent = label;
-  $("complete-melt-success").hidden = !visible;
-  $("complete-melt-success").textContent = label;
   if (mainState.activeMelt) {
     $("product-selector-title").textContent = `${mainState.furnace.name} products - ${mainState.activeMelt.number}`;
   } else if (mainState.furnace) {
@@ -96,6 +94,7 @@ async function captureWeight(button) {
     }
     mainState.activeMelt.captureIds.push(result.id);
     mainState.activeMelt.totalWeight = result.melt_total_weight ?? (mainState.activeMelt.totalWeight + numericWeight(result.weight));
+    mainState.successSeconds = result.success_display_seconds ?? mainState.successSeconds;
     updateCompleteButtons();
     document.querySelectorAll(".product-choice").forEach(item => item.classList.remove("selected")); button.classList.add("selected");
     showCaptureSuccess(result);
@@ -122,17 +121,17 @@ function showCaptureSuccess(result) {
   pendingCaptureId = result.id;
   $("cancel-capture-button").disabled = false;
   $("cancel-capture-button").textContent = "Cancel capture";
-  let secondsRemaining = 10;
-  $("success-countdown").textContent = secondsRemaining;
+  const deadline = Date.now() + mainState.successSeconds * 1000;
+  $("success-countdown").textContent = mainState.successSeconds;
   successTimer = setInterval(() => {
-    secondsRemaining -= 1;
+    const secondsRemaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
     $("success-countdown").textContent = secondsRemaining;
     if (secondsRemaining <= 0) {
       clearInterval(successTimer);
       $("capture-success-screen").hidden = true;
       pendingCaptureId = null;
     }
-  }, 1000);
+  }, 250);
 }
 $("cancel-capture-button").addEventListener("click", async () => {
   if (!pendingCaptureId) return;
@@ -162,7 +161,7 @@ function requestMeltCompletion() {
 async function completeActiveMelt() {
   if (!mainState.activeMelt || !mainState.activeMelt.captureIds.length) return;
   $("complete-melt-dialog").close();
-  const buttons = [$("complete-melt-button"), $("complete-melt-success")];
+  const buttons = [$("complete-melt-button")];
   buttons.forEach(button => { button.disabled = true; button.textContent = "Completing..."; });
   try {
     const result = await requestJson("/api/melts/complete", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({furnace_id:mainState.furnace.id, melt_number:mainState.activeMelt.number, capture_ids:mainState.activeMelt.captureIds})});
@@ -191,7 +190,6 @@ async function completeActiveMelt() {
   }
 }
 $("complete-melt-button").addEventListener("click", requestMeltCompletion);
-$("complete-melt-success").addEventListener("click", requestMeltCompletion);
 $("confirm-complete-melt").addEventListener("click", completeActiveMelt);
 $("furnace-back").addEventListener("click", () => {
   if (mainState.activeMelt?.captureIds.length) {
@@ -209,6 +207,8 @@ $("furnace-back").addEventListener("click", () => {
 async function initializeMain() {
   try {
     mainState.settings = await requestJson("/api/settings");
+    const displaySettings = await requestJson("/api/capture-display-settings").catch(() => ({success_display_seconds: 10}));
+    mainState.successSeconds = displaySettings.success_display_seconds;
     if (!mainState.settings.id) throw new Error("Save communication settings before using the Main Screen");
     pollIntervalMs = Number(mainState.settings.refresh_interval_ms) || 200;
     const status = await requestJson("/api/data?after=0");

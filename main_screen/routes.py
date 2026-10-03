@@ -111,6 +111,34 @@ def melt_threshold_settings():
     return jsonify({"ok": True, **after})
 
 
+@main_bp.route("/api/capture-display-settings", methods=["GET", "PUT"])
+def capture_display_settings():
+    with database_connection() as connection:
+        row = connection.execute(
+            "SELECT success_display_seconds FROM capture_display_settings WHERE id=1"
+        ).fetchone()
+    if request.method == "GET":
+        return jsonify({"success_display_seconds": row["success_display_seconds"] if row else 10})
+
+    value = (request.get_json(silent=True) or {}).get("success_display_seconds")
+    if isinstance(value, bool) or not re.fullmatch(r"[1-9][0-9]*", str(value or "")) or not 1 <= int(value) <= 300:
+        return jsonify({"error": "Enter a duration between 1 and 300 seconds"}), 400
+    seconds = int(value)
+    updated_at = datetime.now().astimezone().isoformat(timespec="seconds")
+    with database_connection() as connection:
+        connection.execute("""
+            INSERT INTO capture_display_settings (id, success_display_seconds, updated_at)
+            VALUES (1, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                success_display_seconds=excluded.success_display_seconds,
+                updated_at=excluded.updated_at
+        """, (seconds, updated_at))
+    record_changes("capture_display_settings", 1, "update",
+                   {"success_display_seconds": row["success_display_seconds"] if row else 10},
+                   {"success_display_seconds": seconds})
+    return jsonify({"ok": True, "success_display_seconds": seconds})
+
+
 @main_bp.put("/api/melt-number-settings/<int:furnace_id>")
 def update_melt_number_setting(furnace_id):
     payload = request.get_json(silent=True) or {}
@@ -195,7 +223,8 @@ def create_weight_capture():
         captured_at = datetime.now().astimezone().isoformat(timespec="milliseconds")
         cursor = connection.execute("INSERT INTO weight_captures (product_image_id,image_name,image_url,weight,furnace_id,furnace_name,furnace_image_url,melt_number,melt_serial,captured_at,captured_by_user_id,captured_by_username) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (image["id"],image["image_name"],image["image_url"],weight,str(furnace_id),furnace["name"],furnace["image_url"],melt_number,melt_serial,captured_at,session["user_id"],session["username"]))
         totals = melt_totals(connection, furnace_id, melt_number)
-    return jsonify({"ok": True,"id":cursor.lastrowid,"image_name":image["image_name"],"image_url":image["image_url"],"weight":weight,"furnace_id":furnace_id,"furnace_name":furnace["name"],"furnace_image_url":furnace["image_url"],"melt_number":melt_number,"melt_serial":melt_serial,**totals,"captured_at":captured_at}), 201
+        display = connection.execute("SELECT success_display_seconds FROM capture_display_settings WHERE id=1").fetchone()
+    return jsonify({"ok": True,"id":cursor.lastrowid,"image_name":image["image_name"],"image_url":image["image_url"],"weight":weight,"furnace_id":furnace_id,"furnace_name":furnace["name"],"furnace_image_url":furnace["image_url"],"melt_number":melt_number,"melt_serial":melt_serial,**totals,"captured_at":captured_at,"success_display_seconds":display["success_display_seconds"] if display else 10}), 201
 
 @main_bp.post("/api/melts/complete")
 def complete_melt():
@@ -229,7 +258,9 @@ def cancel_weight_capture(capture_id):
         capture = connection.execute("SELECT id,captured_by_user_id,captured_at FROM weight_captures WHERE id=?", (capture_id,)).fetchone()
         if capture is None: return jsonify({"ok":False,"error":"Capture not found or already cancelled"}),404
         if capture["captured_by_user_id"] != session["user_id"]: return jsonify({"ok":False,"error":"You can only cancel your own capture"}),403
+        display = connection.execute("SELECT success_display_seconds FROM capture_display_settings WHERE id=1").fetchone()
+        cancellation_seconds = max(15, (display["success_display_seconds"] if display else 10) + 2)
         captured_time=datetime.fromisoformat(capture["captured_at"])
-        if (datetime.now().astimezone()-captured_time).total_seconds()>15: return jsonify({"ok":False,"error":"The cancellation period has expired"}),400
+        if (datetime.now().astimezone()-captured_time).total_seconds()>cancellation_seconds: return jsonify({"ok":False,"error":"The cancellation period has expired"}),400
         connection.execute("DELETE FROM weight_captures WHERE id=?",(capture_id,))
     return jsonify({"ok":True,"id":capture_id})

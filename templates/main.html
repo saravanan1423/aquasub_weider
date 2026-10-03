@@ -43,7 +43,6 @@
     <div class="success-melt-line" id="success-melt-line">Melt: —</div>
     <time id="success-time">—</time>
     <small>Returning to products in <strong id="success-countdown">10</strong> seconds</small>
-    <button class="primary complete-melt-success" id="complete-melt-success" type="button" hidden>Mark as completed (0)</button>
     <button class="cancel-capture-button" id="cancel-capture-button" type="button">Cancel capture</button>
     </div>
   </div>
@@ -70,7 +69,7 @@
   </dialog>
   <button class="complete-melt-button" id="complete-melt-button" type="button" hidden>Mark as completed (0)</button>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
-  <script src="{{ url_for('static', filename='main.js', v='5') }}"></script>
+  <script src="{{ url_for('static', filename='main.js', v='6') }}"></script>
   <script src="{{ url_for('static', filename='fullscreen.js', v='4') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>

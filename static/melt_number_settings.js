@@ -18,6 +18,10 @@ function showThresholdMessage(message = "", error = false) {
   element.className = `shift-message ${error ? "form-error" : "form-success"}`;
   element.textContent = message;
 }
+async function loadCaptureDisplaySettings() {
+  const settings = await jsonFetch("/api/capture-display-settings");
+  $("success-display-seconds").value = settings.success_display_seconds;
+}
 async function loadThresholdSettings() {
   const form = $("melt-threshold-form");
   if (!form) return;
@@ -52,6 +56,34 @@ async function loadMeltSettings() {
   }));
 }
 loadMeltSettings().catch(error => showMessage(error.message, true));
+if ($("capture-display-form")) {
+  loadCaptureDisplaySettings().catch(error => {
+    $("capture-display-message").hidden = false;
+    $("capture-display-message").textContent = error.message;
+  });
+  $("capture-display-form").addEventListener("submit", async event => {
+    event.preventDefault();
+    const button = event.currentTarget.querySelector('button[type="submit"]');
+    const message = $("capture-display-message");
+    message.hidden = true;
+    button.disabled = true;
+    try {
+      await jsonFetch("/api/capture-display-settings", {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({success_display_seconds: $("success-display-seconds").value})
+      });
+      message.className = "shift-message form-success";
+      message.textContent = "Display duration saved";
+    } catch (error) {
+      message.className = "shift-message form-error";
+      message.textContent = error.message;
+    } finally {
+      message.hidden = false;
+      button.disabled = false;
+    }
+  });
+}
 if ($("melt-threshold-form")) {
   loadThresholdSettings().catch(error => showThresholdMessage(error.message, true));
   $("melt-threshold-form").addEventListener("submit", async event => {

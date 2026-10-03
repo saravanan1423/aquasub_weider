@@ -22,6 +22,14 @@
     <header><h1>Melt Number Settings</h1></header>
     <section class="panel melt-number-settings">
       {% if is_admin %}
+      <div class="capture-display-settings">
+        <h2>Capture screen</h2>
+        <form id="capture-display-form">
+          <div class="field"><label for="success-display-seconds">Display duration (seconds)</label><input id="success-display-seconds" name="success_display_seconds" type="number" min="1" max="300" step="1" value="10" required></div>
+          <button class="primary" type="submit">Save</button>
+        </form>
+        <div class="shift-message" id="capture-display-message" role="status" hidden></div>
+      </div>
       <div class="melt-threshold-settings">
         <h2>Weight thresholds</h2>
         <form class="melt-threshold-form" id="melt-threshold-form">
@@ -37,7 +45,7 @@
     </section>
   </main>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
-  <script src="{{ url_for('static', filename='melt_number_settings.js', v='2') }}"></script>
+  <script src="{{ url_for('static', filename='melt_number_settings.js', v='3') }}"></script>
   <script src="{{ url_for('static', filename='fullscreen.js', v='4') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>

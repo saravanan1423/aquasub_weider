@@ -1,6 +1,11 @@
 (() => {
   const isAdmin = document.currentScript?.dataset.admin === "true";
   document.documentElement.dataset.admin = String(isAdmin);
+  document.querySelectorAll(".sidebar nav .nav-link").forEach(link => {
+    if (link.title) return;
+    const label = [...link.childNodes].filter(node => node.nodeType === Node.TEXT_NODE).map(node => node.textContent.trim()).filter(Boolean).join(" ");
+    if (label) link.title = label;
+  });
   if (!isAdmin) return;
 
   const navigation = document.querySelector(".sidebar nav");

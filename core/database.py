@@ -104,6 +104,11 @@ def initialize_database(app):
                 melt_threshold_kg TEXT,
                 updated_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS capture_display_settings (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                success_display_seconds INTEGER NOT NULL DEFAULT 10,
+                updated_at TEXT NOT NULL
+            );
         """)
         columns = {row[1] for row in connection.execute("PRAGMA table_info(users)")}
         if "role" not in columns:
