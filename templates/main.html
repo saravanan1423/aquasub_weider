@@ -17,7 +17,8 @@
       </div>
       <div class="main-inline-weight"><span>LIVE WEIGHT</span><strong id="main-live-weight">------</strong><small class="weight-unit">kg</small></div>
       <div class="status connecting" id="main-status"><span></span><strong>Connecting…</strong></div>
-      <small id="main-weight-message">Waiting for scale data</small>
+      <small id="main-weight-message" hidden></small>
+      <button class="complete-melt-button" id="complete-melt-button" type="button" hidden>Mark as completed (0)</button>
     </div>
     <div class="capture-message" id="capture-message" hidden></div>
 
@@ -67,9 +68,8 @@
       <div class="complete-dialog-actions"><button class="primary" type="submit">OK</button></div>
     </form>
   </dialog>
-  <button class="complete-melt-button" id="complete-melt-button" type="button" hidden>Mark as completed (0)</button>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
-  <script src="{{ url_for('static', filename='main.js', v='6') }}"></script>
+  <script src="{{ url_for('static', filename='main.js', v='7') }}"></script>
   <script src="{{ url_for('static', filename='fullscreen.js', v='4') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>

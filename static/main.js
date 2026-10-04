@@ -27,7 +27,9 @@ function updateCompleteButtons() {
 function setStatus(connected, connecting = false, error = "") {
   const status = $("main-status"); status.className = `status ${connected ? "connected" : connecting ? "connecting" : "disconnected"}`;
   status.querySelector("strong").textContent = connected ? "Scale connected" : connecting ? "Connecting…" : "Scale disconnected";
-  if (error) $("main-weight-message").textContent = error;
+  const message = $("main-weight-message");
+  message.hidden = !error;
+  if (error) message.textContent = error;
 }
 function parseLiveWeight() {
   const settings = mainState.settings; if (!settings) return;
@@ -38,7 +40,7 @@ function parseLiveWeight() {
     const start = mainState.rawStream.lastIndexOf(startMarker, end - 1); if (start < 0) return;
     const selected = mainState.rawStream.slice(start + startMarker.length, end);
     const weight = selected.slice(settings.start_address - 1, settings.end_address).trim();
-    if (weight) { mainState.weight = weight; $("main-live-weight").textContent = weight; $("main-weight-message").textContent = "Live reading"; return; }
+    if (weight) { mainState.weight = weight; $("main-live-weight").textContent = weight; return; }
     searchBefore = start;
   }
 }
