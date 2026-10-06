@@ -54,16 +54,21 @@
     <div class="report-error" id="report-error" hidden></div>
     <section class="report-preview" id="report-preview" hidden>
       <div class="report-meta" id="report-meta"></div>
-      <div class="report-qr"><img id="report-qr-image" alt="QR code to download this report"><div><strong>Scan to download report</strong><span>The CSV report downloads automatically on the scanned device. Link expires in 15 minutes.</span><a id="report-download-link" target="_blank" rel="noopener">Open download link</a></div></div>
+      <div class="report-qr"><button class="report-qr-image-button" id="expand-report-qr" type="button" title="Open QR full screen" aria-label="Open QR full screen"><img id="report-qr-image" alt="QR code to download this report"></button><div><strong>Scan to download report</strong><span>The CSV report downloads automatically on the scanned device. Link expires in 15 minutes.</span><a id="report-download-link" target="_blank" rel="noopener">Open download link</a></div></div>
       <div class="report-preview-table"><table><thead><tr><th>S.No</th><th>Furnace</th><th>Melt number</th><th>Shift type</th><th>Total weight</th><th>Products</th><th>Captured by</th><th>Last captured</th></tr></thead><tbody id="report-body"></tbody></table></div>
       <div class="report-summary" id="report-summary"></div>
       <div class="report-actions"><button class="ghost" id="download-report" type="button">Download CSV</button><button class="primary" id="print-report" type="button">Print / PDF</button></div>
     </section>
   </dialog>
+  <dialog class="report-qr-dialog" id="report-qr-dialog" aria-labelledby="report-qr-title">
+    <div class="report-qr-header"><h2 id="report-qr-title">Scan to download report</h2><button class="ghost" id="close-report-qr" type="button">Back to report</button></div>
+    <div class="report-qr-center"><img id="report-qr-full-image" alt="QR code to download this report"></div>
+    <div class="report-qr-footer"><span>Link expires in 15 minutes</span><a id="report-qr-download-link" target="_blank" rel="noopener">Download CSV</a></div>
+  </dialog>
   <iframe id="report-print-frame" title="Printable report" hidden></iframe>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
   <script>window.LOG_ADMIN = {{ 'true' if is_admin else 'false' }};</script>
-  <script src="{{ url_for('static', filename='capture_logs.js', v='3') }}"></script>
+  <script src="{{ url_for('static', filename='capture_logs.js', v='4') }}"></script>
   <script src="{{ url_for('static', filename='fullscreen.js', v='4') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>

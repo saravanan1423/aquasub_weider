@@ -402,11 +402,22 @@ button:hover { border-color:#48635b; }.primary { border:0; min-width:118px; colo
 .report-meta div { padding:8px 10px; border:1px solid var(--line); border-radius:6px; background:#091310; }
 .report-meta span { display:block; margin-bottom:3px; color:var(--muted); font-size:10px; text-transform:uppercase; }
 .report-qr { display:flex; align-items:center; gap:14px; margin-top:12px; padding:10px; border:1px solid #285b49; border-radius:7px; background:#091310; }
+.report-qr-image-button { flex:none; width:112px; height:112px; padding:0; border:0; border-radius:0; background:#fff; cursor:pointer; }
+.report-qr-image-button:hover,.report-qr-image-button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .report-qr img { width:112px; height:112px; padding:5px; background:#fff; image-rendering:pixelated; }
 .report-qr div { display:grid; gap:6px; }
 .report-qr strong { color:var(--accent); }
 .report-qr span { color:var(--muted); font-size:12px; }
 .report-qr a { width:max-content; color:var(--text); font-size:12px; }
+.report-qr-dialog { position:fixed; inset:0; width:100vw; height:100dvh; max-width:none; max-height:none; margin:0; padding:16px; overflow:hidden; border:0; border-radius:0; color:var(--text); background:#06110e; }
+.report-qr-dialog[open] { display:grid; grid-template-rows:auto minmax(0,1fr) auto; gap:8px; }
+.report-qr-dialog::backdrop { background:#06110e; }
+.report-qr-header,.report-qr-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.report-qr-header h2 { margin:0; font-size:20px; }
+.report-qr-center { min-height:0; display:grid; place-items:center; }
+.report-qr-full-image { display:block; width:min(90vw,calc(100dvh - 140px),560px); max-height:100%; aspect-ratio:1; object-fit:contain; padding:8px; background:#fff; image-rendering:pixelated; }
+.report-qr-footer { color:var(--muted); font-size:12px; }
+.report-qr-footer a { color:var(--accent); text-decoration:none; }
 .report-preview-table { max-height:260px; overflow:auto; margin-top:12px; }
 .report-preview table,.report-summary table { width:100%; border-collapse:collapse; }
 .report-preview th,.report-preview td { padding:7px 9px; border:1px solid var(--line); text-align:left; font-size:11px; }
