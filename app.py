@@ -18,6 +18,7 @@ from core.database import database_connection, initialize_database
 from logs import logs_bp
 from main_screen import main_bp
 from master_image import master_image_bp
+from master_image.routes import migrate_legacy_images
 
 
 def application_secret(instance_path):
@@ -34,11 +35,14 @@ def create_app():
     application.config.update(
         DATABASE_PATH=Path(application.instance_path) / "serial_monitor.db",
         PRODUCT_IMAGE_DIR=Path(application.root_path) / "storage" / "product_images",
+        MASTER_IMAGE_DIR=Path(application.root_path) / "storage" / "master_images",
         MAX_CONTENT_LENGTH=25 * 1024 * 1024,
         SECRET_KEY=application_secret(application.instance_path),
     )
     application.config["PRODUCT_IMAGE_DIR"].mkdir(parents=True, exist_ok=True)
+    application.config["MASTER_IMAGE_DIR"].mkdir(parents=True, exist_ok=True)
     initialize_database(application)
+    migrate_legacy_images(application)
     application.register_blueprint(admin_bp)
     application.register_blueprint(main_bp)
     application.register_blueprint(communication_bp)
