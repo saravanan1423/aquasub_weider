@@ -370,6 +370,35 @@ button:hover { border-color:#48635b; }.primary { border:0; min-width:118px; colo
 .device-settings-actions .form-message { margin-right:auto; }
 .device-settings-actions .primary { min-width:100px; }
 @media(max-width:650px) { .device-settings-form { grid-template-columns:1fr; }.device-settings-actions { flex-wrap:wrap; } }
+.device-tabs { display:flex; gap:6px; margin:0 0 10px; border-bottom:1px solid var(--line); }
+.device-tabs .tab { height:38px; border-radius:6px 6px 0 0; }
+.backup-panel { max-height:calc(100dvh - 185px); overflow-y:auto; }
+.backup-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.backup-heading h2 { margin:0; font-size:19px; }
+.usb-backup-form { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; align-items:end; }
+.usb-backup-form .field { min-width:0; }
+.usb-backup-form .field label { margin-bottom:5px; }
+.backup-actions { grid-column:1/-1; display:flex; align-items:center; justify-content:flex-end; gap:12px; min-height:42px; }
+.backup-actions .form-message { flex:1; min-width:0; margin-right:auto; overflow-wrap:anywhere; }
+.backup-actions .primary { flex:none; width:auto; min-width:178px; }
+.backup-actions .primary:disabled { opacity:.45; cursor:not-allowed; }
+@media(min-width:700px) and (max-height:550px) {
+  .device-settings-page.shell.with-sidebar { padding-top:64px; }
+  .device-settings-page > header { margin-bottom:6px; }
+  .device-settings-page > header h1 { font-size:22px; }
+  .device-tabs { margin-bottom:6px; }
+  .device-tabs .tab { height:32px; }
+  .device-settings-panel { padding:10px 14px; }
+  .backup-panel { max-height:calc(100dvh - 145px); }
+  .backup-heading { margin-bottom:8px; }
+  .backup-heading h2 { font-size:17px; }
+  .usb-backup-form { gap:8px; }
+  .usb-backup-form input,.usb-backup-form select { height:36px; }
+  .backup-actions { min-height:36px; }
+  .backup-actions .primary { height:36px; }
+}
+@media(max-width:650px) { .usb-backup-form { grid-template-columns:repeat(2,minmax(0,1fr)); }.backup-drive-field { grid-column:1/-1; }.backup-actions { flex-wrap:wrap; }.backup-actions .form-message { width:100%; } }
+@media(max-width:420px) { .usb-backup-form { grid-template-columns:1fr; }.backup-actions .primary { width:100%; } }
 
 /* Compact Product Master while retaining side-by-side master/detail panels. */
 .product-master-page { max-width:1280px; }

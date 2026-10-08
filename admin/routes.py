@@ -67,6 +67,33 @@ def device_settings_page():
     return render_template("device_settings.html")
 
 
+@admin_bp.get("/api/usb-drives")
+def usb_drives():
+    from core.usb_backup import mounted_usb_drives
+    return jsonify({"drives": mounted_usb_drives()})
+
+
+@admin_bp.post("/api/report-usb-backup")
+def report_usb_backup():
+    from core.usb_backup import backup_report
+    from logs.routes import build_capture_report
+
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        return jsonify({"ok": False, "error": "Enter valid report filters"}), 400
+    drive_id = payload.get("drive_id")
+    if not isinstance(drive_id, str) or not drive_id:
+        return jsonify({"ok": False, "error": "Select a USB drive"}), 400
+    try:
+        report = build_capture_report(payload, session["username"])
+        result = backup_report(report, drive_id)
+    except ValueError as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    except OSError as error:
+        return jsonify({"ok": False, "error": f"Could not write to USB drive: {error.strerror or error}"}), 507
+    return jsonify({"ok": True, **result})
+
+
 @admin_bp.route("/api/device-settings", methods=["GET", "PUT"])
 def device_settings():
     with database_connection() as connection:

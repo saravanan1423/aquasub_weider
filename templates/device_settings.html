@@ -20,7 +20,11 @@
   </aside>
   <main class="shell with-sidebar device-settings-page">
     <header><h1>Device Settings</h1></header>
-    <section class="panel device-settings-panel">
+    <div class="device-tabs" role="tablist" aria-label="Device settings">
+      <button class="tab active" id="device-tab" type="button" role="tab" aria-controls="device-panel" aria-selected="true">Device</button>
+      <button class="tab" id="backup-tab" type="button" role="tab" aria-controls="backup-panel" aria-selected="false">USB Backup</button>
+    </div>
+    <section class="panel device-settings-panel" id="device-panel" role="tabpanel" aria-labelledby="device-tab">
       <form class="device-settings-form" id="device-settings-form">
         <div class="field"><label for="pi-serial">Raspberry Pi serial number</label><input id="pi-serial" readonly value="Loading..."></div>
         <div class="field"><label for="device-id">Device ID</label><input id="device-id" name="device_id" type="text" inputmode="numeric" pattern="[0-9]{5}" minlength="5" maxlength="5" autocomplete="off" required></div>
@@ -29,9 +33,23 @@
         <div class="device-settings-actions"><div class="form-message" id="device-settings-message" role="status" hidden></div><button class="primary" type="submit">Save</button></div>
       </form>
     </section>
+    <section class="panel device-settings-panel backup-panel" id="backup-panel" role="tabpanel" aria-labelledby="backup-tab" hidden>
+      <div class="backup-heading"><h2>Report backup</h2><button class="ghost" id="refresh-usb" type="button" title="Refresh USB drives">Refresh drives</button></div>
+      <form id="usb-backup-form" class="usb-backup-form">
+        <div class="field backup-drive-field"><label for="backup-drive">USB drive</label><select id="backup-drive" required><option value="">Checking connected drives...</option></select></div>
+        <div class="field"><label for="backup-from-date">From date</label><input id="backup-from-date" type="date" required></div>
+        <div class="field"><label for="backup-to-date">To date</label><input id="backup-to-date" type="date" required></div>
+        <div class="field"><label for="backup-shift">Shift</label><select id="backup-shift"></select></div>
+        <div class="field"><label for="backup-furnace">Furnace</label><select id="backup-furnace"></select></div>
+        <div class="field"><label for="backup-range-type">Time range</label><select id="backup-range-type"><option value="shift">Full day or shift</option><option value="custom">Custom time</option></select></div>
+        <div class="field backup-time-field" hidden><label for="backup-start-time">From time</label><input id="backup-start-time" type="time" value="00:00"></div>
+        <div class="field backup-time-field" hidden><label for="backup-end-time">To time</label><input id="backup-end-time" type="time" value="23:59"></div>
+        <div class="backup-actions"><div class="form-message" id="backup-message" role="status" aria-live="polite" hidden></div><button class="primary" id="backup-submit" type="submit" disabled>Back up CSV + PDF</button></div>
+      </form>
+    </section>
   </main>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
-  <script src="{{ url_for('static', filename='device_settings.js', v='3') }}"></script>
+  <script src="{{ url_for('static', filename='device_settings.js', v='4') }}"></script>
   <script src="{{ url_for('static', filename='fullscreen.js', v='4') }}" data-admin="true"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>

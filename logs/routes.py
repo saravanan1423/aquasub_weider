@@ -121,15 +121,14 @@ def shift_name_for_capture(captured_at, shifts):
     return "Unassigned"
 
 
-@logs_bp.get("/api/capture-report")
-def capture_report():
+def build_capture_report(params, username):
     try:
-        from_date=date.fromisoformat(request.args.get("from_date", ""))
-        to_date=date.fromisoformat(request.args.get("to_date", ""))
-    except ValueError: return jsonify({"ok":False,"error":"Select a valid From and To date"}),400
-    if to_date < from_date: return jsonify({"ok":False,"error":"To date must be on or after From date"}),400
-    shift_value=request.args.get("shift","all"); furnace_value=request.args.get("furnace","all")
-    custom_mode=request.args.get("custom_time")=="1" or shift_value=="custom"
+        from_date=date.fromisoformat(params.get("from_date", ""))
+        to_date=date.fromisoformat(params.get("to_date", ""))
+    except (TypeError, ValueError): raise ValueError("Select a valid From and To date") from None
+    if to_date < from_date: raise ValueError("To date must be on or after From date")
+    shift_value=params.get("shift","all"); furnace_value=params.get("furnace","all")
+    custom_mode=params.get("custom_time")=="1" or shift_value=="custom"
     if shift_value=="custom": shift_value="all"
     with database_connection() as connection:
         shifts=connection.execute("SELECT id,name,start_time,end_time FROM shifts ORDER BY start_time,name").fetchall()
@@ -138,15 +137,15 @@ def capture_report():
     shift=None
     if shift_value != "all":
         try: shift=next((row for row in shifts if row["id"]==int(shift_value)),None)
-        except ValueError: shift=None
-        if shift is None: return jsonify({"ok":False,"error":"Select a valid shift"}),400
+        except (TypeError,ValueError): shift=None
+        if shift is None: raise ValueError("Select a valid shift")
     custom_start=custom_end=None
     if custom_mode:
         try:
-            custom_start=datetime.combine(from_date,time.fromisoformat(request.args.get("start_time",""))).astimezone()
-            custom_end=datetime.combine(to_date,time.fromisoformat(request.args.get("end_time",""))).astimezone()
-        except ValueError: return jsonify({"ok":False,"error":"Select valid custom start and end times"}),400
-        if custom_end <= custom_start: return jsonify({"ok":False,"error":"Custom To date and time must be after From"}),400
+            custom_start=datetime.combine(from_date,time.fromisoformat(params.get("start_time",""))).astimezone()
+            custom_end=datetime.combine(to_date,time.fromisoformat(params.get("end_time",""))).astimezone()
+        except (TypeError, ValueError): raise ValueError("Select valid custom start and end times") from None
+        if custom_end <= custom_start: raise ValueError("Custom To date and time must be after From")
     filtered=[]
     for capture in captures:
         captured=local_capture_datetime(capture["captured_at"]); captured_date=captured.date(); captured_time=captured.strftime("%H:%M")
@@ -179,7 +178,14 @@ def capture_report():
     furnace_name="All furnaces" if furnace_value=="all" else next((row["furnace_name"] for row in furnaces if str(row["furnace_id"])==furnace_value),"Selected furnace")
     range_from=custom_start.isoformat(timespec="minutes") if custom_mode else from_date.isoformat()
     range_to=custom_end.isoformat(timespec="minutes") if custom_mode else to_date.isoformat()
-    report={"ok":True,"generated_by":session["username"],"generated_on":datetime.now().astimezone().isoformat(timespec="seconds"),"range_from":range_from,"range_to":range_to,"shift":shift_name,"furnace":furnace_name,"items":melt_items,"summary":list(summary.values()),"total_melts":len(melt_items),"total_products":len(filtered),"total_net_weight":sum(item["numeric_weight"] for item in filtered),"options":{"shifts":[dict(row) for row in shifts],"furnaces":[dict(row) for row in furnaces]}}
+    report={"ok":True,"generated_by":username,"generated_on":datetime.now().astimezone().isoformat(timespec="seconds"),"range_from":range_from,"range_to":range_to,"shift":shift_name,"furnace":furnace_name,"items":melt_items,"summary":list(summary.values()),"total_melts":len(melt_items),"total_products":len(filtered),"total_net_weight":sum(item["numeric_weight"] for item in filtered),"options":{"shifts":[dict(row) for row in shifts],"furnaces":[dict(row) for row in furnaces]}}
+    return report
+
+
+@logs_bp.get("/api/capture-report")
+def capture_report():
+    try: report=build_capture_report(request.args, session["username"])
+    except ValueError as error: return jsonify({"ok":False,"error":str(error)}),400
     host = report_share_host()
     if not host:
         return jsonify({"ok": False, "error": "No network address is available for report sharing"}), 503
@@ -214,11 +220,8 @@ def capture_report_qr(token):
 def download_shared_report(token):
     with database_connection() as connection: saved=connection.execute("SELECT report_json,expires_at FROM report_downloads WHERE token=?",(token,)).fetchone()
     if saved is None or datetime.fromisoformat(saved["expires_at"])<=datetime.now().astimezone(): return "This report download link has expired.",410
-    report=json.loads(saved["report_json"]); output=io.StringIO(newline=""); writer=csv.writer(output,quoting=csv.QUOTE_ALL)
-    writer.writerows([["MELT REPORT","","","","","","",""] ,["Generated by",report["generated_by"],"Generated on",report["generated_on"],"Shift",report["shift"],"",""] ,["From",report["range_from"],"To",report["range_to"],"Furnace",report["furnace"],"",""] ,[],["S.No","Furnace","Melt number","Shift type","Total weight (kg)","Products","Captured by","Last captured"]])
-    for index,item in enumerate(report["items"],1): writer.writerow([index,item["furnace_name"],item["melt_number"],item["shift_type"],f'{item["total_weight"]:.3f}',item["product_count"],item["captured_by_username"],item["captured_at"]])
-    writer.writerow([]); writer.writerow(["Grand total",report["total_melts"],"melts",f'{report["total_net_weight"]:.3f} kg',report["total_products"],"products",""])
-    data=io.BytesIO(output.getvalue().encode("utf-8-sig")); data.seek(0)
+    from core.report_export import report_csv
+    report=json.loads(saved["report_json"]); data=io.BytesIO(report_csv(report))
     return send_file(data,mimetype="text/csv",as_attachment=True,download_name=f'capture-report-{datetime.now().date().isoformat()}.csv')
 
 @logs_bp.route("/api/weight-captures/<int:capture_id>",methods=["PUT","DELETE"])

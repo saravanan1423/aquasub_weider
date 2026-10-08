@@ -18,9 +18,24 @@ Data is stored in `instance/serial_monitor.db`. The `serial_settings` table keep
 the latest serial-port and parser configuration. Live parsed weights are shown
 in the browser only and are not stored in the database.
 
-The **Image Master** screen stores uploads under `storage/product_images` using
-the image name, capture timestamp, and a short unique suffix. Its metadata and
-browser URL are recorded in the separate `product_images` SQLite table.
+The **Image Master** screen stores furnace uploads under `storage/master_images`;
+each furnace folder has a `product_images` folder for its products. Existing
+image URLs remain available for older capture records. Image metadata and
+browser URLs are stored in the `product_images` SQLite table.
+
+## USB report backup
+
+In **Device Settings > USB Backup**, select a mounted USB drive, choose the same
+date, shift, furnace, and optional time filters as the report generator, then
+select **Back up CSV + PDF**. The app writes both files to a new folder under
+`Weider Reports/` on the drive. Only administrators can use this action.
+
+On Raspberry Pi OS, the drive must be mounted under `/media`, `/mnt`, or
+`/run/media` and writable by the user running the app. Plugging in a drive does
+not always mount it automatically on a headless Pi. Mount it first, then use
+**Refresh drives**. USB detection requires the system `lsblk` command. Install
+the updated Python dependencies with `pip install -r requirements.txt` before
+running the app.
 
 ## Login and roles
 
