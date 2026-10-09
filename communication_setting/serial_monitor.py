@@ -3,6 +3,7 @@ import time
 import re
 from collections import deque
 from datetime import datetime
+from decimal import Decimal
 
 import serial
 
@@ -33,12 +34,14 @@ class SerialMonitor:
         self._lock = threading.Lock(); self._stop = threading.Event(); self._thread = None; self._serial = None
         self._frames = deque(maxlen=1000); self._next_id = 1; self.connected = False; self.connecting = False; self.error = ""; self.config = {}
         self._weight_buffer = ""; self._weight = ""; self._last_valid_weight_at = None
+        self._stable_since = None
 
     def start(self, config):
         self.stop()
         with self._lock:
             self.config = config; self.error = ""; self.connecting = True; self._frames.clear(); self._next_id = 1; self._stop = threading.Event()
             self._weight_buffer = ""; self._weight = ""; self._last_valid_weight_at = None
+            self._stable_since = None
         self._thread = threading.Thread(target=self._read_loop, daemon=True); self._thread.start()
 
     def stop(self):
@@ -50,6 +53,7 @@ class SerialMonitor:
         with self._lock:
             self.connected = False; self.connecting = False
             self._weight_buffer = ""; self._weight = ""; self._last_valid_weight_at = None
+            self._stable_since = None
         self._serial = None
 
     def _read_weight(self, frame):
@@ -67,11 +71,17 @@ class SerialMonitor:
                 selected = stream[start + len(start_marker):end]
                 weight = selected[self.config.get("start_address", 1) - 1:self.config.get("end_address", len(selected))].strip()
                 if re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)", weight):
+                    now = time.monotonic()
+                    if (self._last_valid_weight_at is None
+                            or now - self._last_valid_weight_at >= self._reading_timeout()
+                            or not self._weight or Decimal(weight) != Decimal(self._weight)):
+                        self._stable_since = now
                     self._weight = weight
-                    self._last_valid_weight_at = time.monotonic()
+                    self._last_valid_weight_at = now
                 else:
                     self._weight = ""
                     self._last_valid_weight_at = None
+                    self._stable_since = None
             stream = stream[end + len(end_marker):]
         self._weight_buffer = stream[-16384:]
 
@@ -111,12 +121,19 @@ class SerialMonitor:
             with self._lock: self.connected = False; self.connecting = False
             self._serial = None
 
+    def _reading_timeout(self):
+        return max(2.0, self.config.get("frame_timeout", 1) + self.config.get("frame_gap", .25))
+
     def snapshot(self, after=0):
         with self._lock:
-            timeout = max(2.0, self.config.get("frame_timeout", 1) + self.config.get("frame_gap", .25))
+            timeout = self._reading_timeout()
             scale_connected = (self.connected and self._last_valid_weight_at is not None
                                and time.monotonic() - self._last_valid_weight_at < timeout)
+            # Require received readings spanning two seconds, not a single old sample.
+            weight_stable = (scale_connected and self._stable_since is not None
+                             and self._last_valid_weight_at - self._stable_since >= 2.0)
             return {"connected": self.connected, "connecting": self.connecting,
+                    "weight_stable": weight_stable,
                     "scale_connected": scale_connected, "weight": self._weight if scale_connected else "",
                     "last_frame_id": self._next_id - 1,
                     "error": self.error, "config": self.config,

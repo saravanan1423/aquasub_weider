@@ -4,6 +4,7 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, jsonify, render_template, request, session
 from core.database import database_connection
 from core.audit import record_changes
+from communication_setting.serial_monitor import monitor
 
 main_bp = Blueprint("main_screen", __name__)
 
@@ -224,9 +225,15 @@ def create_weight_capture():
     try: furnace_id=int(payload.get("furnace_id"))
     except (TypeError,ValueError): return jsonify({"ok": False, "error": "Select a valid furnace before selecting an image"}), 400
     if not weight or weight == "------": return jsonify({"ok": False, "error": "Wait for a live weight before selecting an image"}), 400
-    amount = weight_amount(weight)
-    if amount is None or amount < 0:
-        return jsonify({"ok": False, "error": "Wait for a valid non-negative weight before selecting an image"}), 400
+    amount = Decimal(weight) if re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)", weight) else None
+    if amount is None or amount <= 0:
+        return jsonify({"ok": False, "error": "Weight must be greater than zero to capture"}), 400
+    scale = monitor.snapshot()
+    if not scale["scale_connected"]:
+        return jsonify({"ok": False, "error": "Scale disconnected. Wait for a live weight before capturing."}), 409
+    if not scale["weight_stable"] or Decimal(scale["weight"]) != amount:
+        return jsonify({"ok": False, "error": "Wait for the weight to remain unchanged for 2 seconds before capturing."}), 409
+    weight = scale["weight"]
     with database_connection() as connection:
         connection.execute("BEGIN IMMEDIATE")
         furnace=connection.execute("SELECT id,image_name AS name,image_url,melt_start_serial FROM product_images WHERE id=? AND image_type='furnace'",(furnace_id,)).fetchone()

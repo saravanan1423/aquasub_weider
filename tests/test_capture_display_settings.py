@@ -3,6 +3,8 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
+from scale_stub import stable_scale_snapshot
 
 from app import app
 from core.database import database_connection, initialize_database
@@ -10,6 +12,9 @@ from core.database import database_connection, initialize_database
 
 class CaptureDisplaySettingsTests(unittest.TestCase):
     def setUp(self):
+        scale_patch = patch("main_screen.routes.monitor.snapshot", side_effect=stable_scale_snapshot)
+        scale_patch.start()
+        self.addCleanup(scale_patch.stop)
         self.temporary = tempfile.TemporaryDirectory()
         self.original_path = app.config["DATABASE_PATH"]
         app.config["DATABASE_PATH"] = Path(self.temporary.name) / "test.db"

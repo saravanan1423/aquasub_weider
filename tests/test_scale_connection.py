@@ -73,6 +73,44 @@ class ScaleConnectionTests(unittest.TestCase):
         self.now += 2
         self.assertFalse(self.monitor.snapshot()["scale_connected"])
 
+    def test_stability_requires_received_equal_readings_for_two_seconds(self):
+        self.monitor._append(b"$00020]")
+        self.now += 1
+        self.monitor._append(b"$20.00]")
+        self.now += .9
+        self.monitor._append(b"$00020]")
+        self.assertFalse(self.monitor.snapshot()["weight_stable"])
+        self.now += .1
+        self.monitor._append(b"$00020]")
+        self.assertTrue(self.monitor.snapshot()["weight_stable"])
+        self.monitor._append(b"$00021]")
+        self.assertFalse(self.monitor.snapshot()["weight_stable"])
+
+    def test_single_reading_does_not_become_stable_during_silence(self):
+        self.monitor.config.update(frame_timeout=5)
+        self.monitor._append(b"$00020]")
+        self.now += 3
+        self.assertTrue(self.monitor.snapshot()["scale_connected"])
+        self.assertFalse(self.monitor.snapshot()["weight_stable"])
+
+    def test_invalid_reading_or_silence_restarts_stability(self):
+        self.monitor._append(b"$00020]")
+        for _ in range(2):
+            self.now += 1
+            self.monitor._append(b"$00020]")
+        self.assertTrue(self.monitor.snapshot()["weight_stable"])
+        self.monitor._append(b"$ERROR]")
+        self.monitor._append(b"$00020]")
+        self.assertFalse(self.monitor.snapshot()["weight_stable"])
+        for _ in range(2):
+            self.now += 1
+            self.monitor._append(b"$00020]")
+        self.assertTrue(self.monitor.snapshot()["weight_stable"])
+        self.now += 2.1
+        self.assertFalse(self.monitor.snapshot()["weight_stable"])
+        self.monitor._append(b"$00020]")
+        self.assertFalse(self.monitor.snapshot()["weight_stable"])
+
     def test_disconnected_port_never_exposes_old_weight(self):
         self.monitor._append(b"$00020]")
         self.monitor.connected = False

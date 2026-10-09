@@ -2,6 +2,8 @@ import gc
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+from scale_stub import stable_scale_snapshot
 
 from app import app
 from core.database import database_connection, initialize_database
@@ -9,6 +11,9 @@ from core.database import database_connection, initialize_database
 
 class MeltRecoveryTests(unittest.TestCase):
     def setUp(self):
+        self.scale_patch = patch("main_screen.routes.monitor.snapshot", side_effect=stable_scale_snapshot)
+        self.scale_patch.start()
+        self.addCleanup(self.scale_patch.stop)
         self.temporary = tempfile.TemporaryDirectory()
         self.original_path = app.config["DATABASE_PATH"]
         app.config["DATABASE_PATH"] = Path(self.temporary.name) / "test.db"
@@ -39,6 +44,25 @@ class MeltRecoveryTests(unittest.TestCase):
         with client.session_transaction() as session:
             session.update(user_id=user_id, username=username)
         return client
+
+    def test_capture_requires_stable_nonzero_current_reading(self):
+        payload = {"product_image_id": self.products[0], "furnace_id": self.furnaces[0], "weight": "5"}
+        for state in (
+            {"scale_connected": False, "weight_stable": False, "weight": ""},
+            {"scale_connected": True, "weight_stable": False, "weight": "5"},
+            {"scale_connected": True, "weight_stable": True, "weight": "6"},
+        ):
+            with self.subTest(state=state), patch("main_screen.routes.monitor.snapshot", return_value=state):
+                self.assertEqual(self.client.post("/api/weight-captures", json=payload).status_code, 409)
+        for weight in ("0", "00000", "0.000", "-0", "-1", "abc5"):
+            with self.subTest(weight=weight):
+                self.assertEqual(self.client.post("/api/weight-captures", json={**payload, "weight": weight}).status_code, 400)
+        self.assertIsNone(self.client.get("/api/melts/unfinished").json["melt"])
+        with patch("main_screen.routes.monitor.snapshot", return_value={
+                "scale_connected": True, "weight_stable": True, "weight": "00005"}):
+            response = self.client.post("/api/weight-captures", json=payload)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json["weight"], "00005")
 
     def capture(self, weight, furnace=0, client=None, **extra):
         response = (client or self.client).post("/api/weight-captures", json={

@@ -1,6 +1,6 @@
 const $ = id => document.getElementById(id);
 let pollIntervalMs = 200;
-const mainState = {lastId: 0, settings: null, weight: "", connectingAttempted: false, furnace: null, products: [], activeMelt: null, successSeconds: 10};
+const mainState = {lastId: 0, settings: null, weight: "", weightStable: false, connectingAttempted: false, furnace: null, products: [], activeMelt: null, successSeconds: 10};
 let successTimer = null;
 let pendingCaptureId = null;
 let selectingFurnace = false;
@@ -38,9 +38,11 @@ async function pollScale() {
     setStatus(data.scale_connected, false, data.error);
     mainState.lastId = data.last_frame_id;
     mainState.weight = data.scale_connected ? data.weight : "";
+    mainState.weightStable = Boolean(data.scale_connected && data.weight_stable);
     $("main-live-weight").textContent = mainState.weight || "------";
   } catch (error) {
     mainState.weight = "";
+    mainState.weightStable = false;
     $("main-live-weight").textContent = "------";
     setStatus(false, false, error.message);
   }
@@ -102,6 +104,9 @@ async function captureWeight(button) {
   const message = $("capture-message"); message.hidden = true; button.disabled = true;
   try {
     if (!mainState.furnace) throw new Error("Select a furnace before selecting an image");
+    if (!mainState.weight) throw new Error("Wait for a live weight before capturing");
+    if (Number(mainState.weight) <= 0) throw new Error("Weight must be greater than zero to capture");
+    if (!mainState.weightStable) throw new Error("Wait for the weight to remain unchanged for 2 seconds before capturing");
     const payload = {product_image_id:Number(button.dataset.id), furnace_id:mainState.furnace.id, weight:mainState.weight};
     if (mainState.activeMelt) {
       payload.melt_number = mainState.activeMelt.number;

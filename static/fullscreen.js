@@ -1,4 +1,11 @@
 (() => {
+  document.addEventListener("contextmenu", event => event.preventDefault(), {capture: true});
+  document.addEventListener("dragstart", event => {
+    if (event.target instanceof Element && event.target.closest("img, a")) event.preventDefault();
+  }, {capture: true});
+  document.addEventListener("keydown", event => {
+    if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) event.preventDefault();
+  }, {capture: true});
   const isAdmin = document.currentScript?.dataset.admin === "true";
   document.documentElement.dataset.admin = String(isAdmin);
   document.querySelectorAll(".sidebar nav .nav-link").forEach(link => {
