@@ -71,8 +71,8 @@ function updateStatus(data) {
   state.connected = data.connected;
   state.connecting = data.connecting;
   const status = $("status");
-  const label = data.connected ? "Connected" : data.connecting ? "Connecting…" : "Disconnected";
-  status.className = `status ${data.connected ? "connected" : data.connecting ? "connecting" : "disconnected"}`;
+  const label = data.scale_connected ? "Device connected" : "Device disconnected";
+  status.className = `status ${data.scale_connected ? "connected" : "disconnected"}`;
   status.querySelector("strong").textContent = label;
   $("connect").textContent = data.connected || data.connecting ? "Disconnect" : "Connect";
   document.querySelectorAll(".controls input, .controls select").forEach(el => el.disabled = data.connected || data.connecting);
@@ -120,7 +120,7 @@ function updateLiveWeight() {
     if (startIndex < 0) break;
     const selected = state.rawStream.slice(startIndex + startMarker.length, endIndex);
     const weight = selected.slice(startAddress - 1, endAddress).trim();
-    if (weight) {
+    if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(weight)) {
       $("selected-data").textContent = selected;
       $("live-weight").textContent = weight;
       $("weight-state").textContent = `Characters ${startAddress}–${endAddress}`;
@@ -157,7 +157,19 @@ async function poll() {
       $("latest").textContent = new Date(data.frames.at(-1).time).toLocaleTimeString();
       if ($("autoscroll").checked) $("terminal").scrollTop = $("terminal").scrollHeight;
     }
-  } catch (error) { showError(error.message); }
+    state.lastId = data.last_frame_id;
+    if (data.scale_connected) {
+      $("live-weight").textContent = data.weight;
+    } else {
+      $("live-weight").textContent = "------";
+      $("weight-state").textContent = "Waiting for a valid weight";
+      state.rawStream = "";
+    }
+  } catch (error) {
+    updateStatus({connected:false, connecting:false, scale_connected:false});
+    $("live-weight").textContent = "------";
+    showError(error.message);
+  }
   setTimeout(poll, pollIntervalMs);
 }
 

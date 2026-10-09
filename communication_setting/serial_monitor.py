@@ -1,5 +1,6 @@
 import threading
 import time
+import re
 from collections import deque
 from datetime import datetime
 
@@ -31,11 +32,13 @@ class SerialMonitor:
     def __init__(self):
         self._lock = threading.Lock(); self._stop = threading.Event(); self._thread = None; self._serial = None
         self._frames = deque(maxlen=1000); self._next_id = 1; self.connected = False; self.connecting = False; self.error = ""; self.config = {}
+        self._weight_buffer = ""; self._weight = ""; self._last_valid_weight_at = None
 
     def start(self, config):
         self.stop()
         with self._lock:
             self.config = config; self.error = ""; self.connecting = True; self._frames.clear(); self._next_id = 1; self._stop = threading.Event()
+            self._weight_buffer = ""; self._weight = ""; self._last_valid_weight_at = None
         self._thread = threading.Thread(target=self._read_loop, daemon=True); self._thread.start()
 
     def stop(self):
@@ -44,11 +47,37 @@ class SerialMonitor:
             try: self._serial.cancel_read()
             except (AttributeError, serial.SerialException): pass
         if self._thread and self._thread.is_alive() and self._thread is not threading.current_thread(): self._thread.join(timeout=1.5)
-        with self._lock: self.connected = False; self.connecting = False
+        with self._lock:
+            self.connected = False; self.connecting = False
+            self._weight_buffer = ""; self._weight = ""; self._last_valid_weight_at = None
         self._serial = None
+
+    def _read_weight(self, frame):
+        start_marker = self.config.get("start_marker", "")
+        end_marker = self.config.get("end_marker", "")
+        if not start_marker or not end_marker:
+            return
+        stream = self._weight_buffer + frame.decode("latin1")
+        while True:
+            end = stream.find(end_marker)
+            if end < 0:
+                break
+            start = stream.rfind(start_marker, 0, end)
+            if start >= 0:
+                selected = stream[start + len(start_marker):end]
+                weight = selected[self.config.get("start_address", 1) - 1:self.config.get("end_address", len(selected))].strip()
+                if re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)", weight):
+                    self._weight = weight
+                    self._last_valid_weight_at = time.monotonic()
+                else:
+                    self._weight = ""
+                    self._last_valid_weight_at = None
+            stream = stream[end + len(end_marker):]
+        self._weight_buffer = stream[-16384:]
 
     def _append(self, frame):
         with self._lock:
+            self._read_weight(frame)
             self._frames.append({"id": self._next_id, "time": datetime.now().astimezone().isoformat(timespec="milliseconds"), "text": printable_text(frame), "hex": frame.hex(" ").upper(), "bytes": list(frame), "length": len(frame)})
             self._next_id += 1
 
@@ -83,7 +112,15 @@ class SerialMonitor:
             self._serial = None
 
     def snapshot(self, after=0):
-        with self._lock: return {"connected": self.connected, "connecting": self.connecting, "error": self.error, "config": self.config, "frames": [frame for frame in self._frames if frame["id"] > after]}
+        with self._lock:
+            timeout = max(2.0, self.config.get("frame_timeout", 1) + self.config.get("frame_gap", .25))
+            scale_connected = (self.connected and self._last_valid_weight_at is not None
+                               and time.monotonic() - self._last_valid_weight_at < timeout)
+            return {"connected": self.connected, "connecting": self.connecting,
+                    "scale_connected": scale_connected, "weight": self._weight if scale_connected else "",
+                    "last_frame_id": self._next_id - 1,
+                    "error": self.error, "config": self.config,
+                    "frames": [frame for frame in self._frames if frame["id"] > after]}
 
     def clear(self):
         with self._lock: self._frames.clear()

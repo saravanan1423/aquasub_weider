@@ -1,6 +1,6 @@
 const $ = id => document.getElementById(id);
 let pollIntervalMs = 200;
-const mainState = {lastId: 0, rawStream: "", settings: null, weight: "", connectingAttempted: false, furnace: null, products: [], activeMelt: null, successSeconds: 10};
+const mainState = {lastId: 0, settings: null, weight: "", connectingAttempted: false, furnace: null, products: [], activeMelt: null, successSeconds: 10};
 let successTimer = null;
 let pendingCaptureId = null;
 let selectingFurnace = false;
@@ -32,28 +32,18 @@ function setStatus(connected, connecting = false, error = "") {
   message.hidden = !error;
   if (error) message.textContent = error;
 }
-function parseLiveWeight() {
-  const settings = mainState.settings; if (!settings) return;
-  const startMarker = settings.start_marker, endMarker = settings.end_marker;
-  let searchBefore = mainState.rawStream.length;
-  while (searchBefore > 0) {
-    const end = mainState.rawStream.lastIndexOf(endMarker, searchBefore - 1); if (end < 0) return;
-    const start = mainState.rawStream.lastIndexOf(startMarker, end - 1); if (start < 0) return;
-    const selected = mainState.rawStream.slice(start + startMarker.length, end);
-    const weight = selected.slice(settings.start_address - 1, settings.end_address).trim();
-    if (weight) { mainState.weight = weight; $("main-live-weight").textContent = weight; return; }
-    searchBefore = start;
-  }
-}
 async function pollScale() {
   try {
-    const data = await requestJson(`/api/data?after=${mainState.lastId}`); setStatus(data.connected, data.connecting, data.error);
-    for (const frame of data.frames) {
-      mainState.lastId = Math.max(mainState.lastId, frame.id);
-      mainState.rawStream = (mainState.rawStream + frame.bytes.map(byte => String.fromCharCode(byte)).join("")).slice(-16384);
-    }
-    if (data.frames.length) parseLiveWeight();
-  } catch (error) { setStatus(false, false, error.message); }
+    const data = await requestJson(`/api/data?after=${mainState.lastId}`);
+    setStatus(data.scale_connected, false, data.error);
+    mainState.lastId = data.last_frame_id;
+    mainState.weight = data.scale_connected ? data.weight : "";
+    $("main-live-weight").textContent = mainState.weight || "------";
+  } catch (error) {
+    mainState.weight = "";
+    $("main-live-weight").textContent = "------";
+    setStatus(false, false, error.message);
+  }
   setTimeout(pollScale, pollIntervalMs);
 }
 async function loadProducts() {
