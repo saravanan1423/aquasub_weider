@@ -4,7 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Main Screen</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
+<body class="main-page">
   <aside class="sidebar">
     <a class="brand" href="/"><span>W</span><strong>WeightFlow</strong></a>
     <nav>{% if can_access('main') %}<a class="nav-link active" href="/"><span>⌂</span>Main Screen</a>{% endif %}{% if can_access('communication') %}<a class="nav-link" href="/communication"><span>⌁</span>Communication Settings</a>{% endif %}{% if can_access('shifts') %}<a class="nav-link" href="/shifts"><span>S</span>Shift Settings</a>{% endif %}{% if can_access('melts') %}<a class="nav-link" href="/melt-settings"><span>M</span>Melt Number Settings</a>{% endif %}{% if can_access('products') %}<a class="nav-link" href="/images"><span>▧</span>Product Master</a>{% endif %}{% if can_access('logs') %}<a class="nav-link" href="/logs"><span>≡</span>Logs</a>{% endif %}{% if is_admin %}<a class="nav-link" href="/users"><span>♙</span>Users</a>{% endif %}<form class="logout-form" action="/logout" method="post"><button type="submit">↪ Logout</button></form></nav>
@@ -69,7 +69,7 @@
     </form>
   </dialog>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
-  <script src="{{ url_for('static', filename='main.js', v='11') }}"></script>
+  <script src="{{ url_for('static', filename='main.js', v='12') }}"></script>
   <script src="{{ url_for('static', filename='fullscreen.js', v='5') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>
