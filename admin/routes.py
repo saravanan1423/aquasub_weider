@@ -6,7 +6,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 from core.auth import SCREENS, current_user_access
 from core.database import database_connection
@@ -91,6 +91,12 @@ def report_usb_backup():
         return jsonify({"ok": False, "error": str(error)}), 400
     except OSError as error:
         return jsonify({"ok": False, "error": f"Could not write to USB drive: {error.strerror or error}"}), 507
+    except ImportError:
+        current_app.logger.exception("USB backup PDF dependency is unavailable")
+        return jsonify({"ok": False, "error": "PDF export is unavailable on this device. Contact the administrator to install the report dependencies."}), 503
+    except Exception:
+        current_app.logger.exception("USB report backup failed")
+        return jsonify({"ok": False, "error": "Could not create the backup report. Contact the administrator to check the application log."}), 500
     return jsonify({"ok": True, **result})
 
 

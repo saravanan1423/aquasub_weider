@@ -1,4 +1,6 @@
 import gc
+import csv
+import io
 import tempfile
 import unittest
 from datetime import datetime
@@ -57,6 +59,47 @@ class UsbBackupTests(unittest.TestCase):
             response = self.client.post("/api/report-usb-backup", json=self.payload())
         self.assertEqual(response.status_code, 400)
         self.assertFalse((self.drive_root / "Weider Reports").exists())
+
+    def test_empty_database_exports_headers_and_zero_totals(self):
+        with app.app_context():
+            connection = database_connection()
+            connection.execute("DELETE FROM weight_captures")
+            connection.commit()
+            connection.close()
+        self.assert_empty_backup(self.payload())
+
+    def test_filters_without_matches_export_empty_report(self):
+        payload = self.payload()
+        payload.update(from_date="2000-01-01", to_date="2000-01-01")
+        self.assert_empty_backup(payload)
+
+    def assert_empty_backup(self, payload):
+        with patch("core.usb_backup.mounted_usb_drives", return_value=[self.drive]), patch.object(Path, "is_mount", return_value=True):
+            response = self.client.post("/api/report-usb-backup", json=payload)
+        self.assertEqual(response.status_code, 200, response.json)
+        self.assertEqual(response.json["total_melts"], 0)
+        self.assertEqual(response.json["total_weight"], 0)
+        folder = Path(response.json["folder"])
+        csv_file, pdf_file = [folder / name for name in response.json["files"]]
+        rows = list(csv.reader(io.StringIO(csv_file.read_text(encoding="utf-8-sig"))))
+        self.assertEqual(rows[4][0], "S.No")
+        self.assertEqual(rows[5], [])
+        self.assertEqual(rows[6][:6], ["Grand total", "0", "melts", "0.000 kg", "0", "products"])
+        self.assertTrue(pdf_file.read_bytes().startswith(b"%PDF"))
+        self.assertGreater(pdf_file.stat().st_size, 1000)
+
+    def test_missing_pdf_dependency_returns_useful_json_error(self):
+        with patch("core.usb_backup.mounted_usb_drives", return_value=[self.drive]), patch("core.usb_backup.report_pdf", side_effect=ModuleNotFoundError("No module named 'reportlab'")), self.assertLogs(app.logger, level="ERROR"):
+            response = self.client.post("/api/report-usb-backup", json=self.payload())
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("PDF export is unavailable", response.json["error"])
+        self.assertFalse((self.drive_root / "Weider Reports").exists())
+
+    def test_pdf_failure_returns_json_error(self):
+        with patch("core.usb_backup.mounted_usb_drives", return_value=[self.drive]), patch("core.usb_backup.report_pdf", side_effect=RuntimeError("PDF generation failed")), self.assertLogs(app.logger, level="ERROR"):
+            response = self.client.post("/api/report-usb-backup", json=self.payload())
+        self.assertEqual(response.status_code, 500)
+        self.assertIn("Could not create the backup report", response.json["error"])
 
     def test_backup_requires_admin(self):
         with app.app_context():

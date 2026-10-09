@@ -133,9 +133,15 @@
       const response = await fetch("/api/report-usb-backup", {
         method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload)
       });
-      const result = await response.json();
+      let result;
+      try {
+        result = await response.json();
+      } catch {
+        throw new Error(`Backup could not finish (server response ${response.status}). Contact the administrator to check the application log.`);
+      }
       if (!response.ok) throw new Error(result.error || "Backup failed");
-      backupStatus(`Saved ${result.files.join(" and ")} to ${result.drive} / Weider Reports (${result.total_melts} melts)`);
+      const reportStatus = result.total_melts === 0 ? "No data: empty CSV and PDF saved" : `${result.total_melts} melts saved as CSV and PDF`;
+      backupStatus(`${reportStatus} to ${result.drive} / Weider Reports`);
     } catch (error) {
       await refreshDrives();
       backupStatus(error.message, true);
