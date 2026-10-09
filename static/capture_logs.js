@@ -59,6 +59,58 @@ document.getElementById("next-page").addEventListener("click", () => loadCapture
 
 const reportDialog=document.getElementById("report-dialog");
 const reportQrDialog=document.getElementById("report-qr-dialog");
+const reportOutput=document.getElementById("report-output");
+const backupDrive=document.getElementById("backup-drive");
+const generateReport=document.getElementById("generate-report");
+let reportBusy=false;
+let drivesLoading=false;
+function usbSelected() { return reportOutput?.value === "usb"; }
+function updateGenerateButton() {
+  generateReport.disabled=reportBusy || (usbSelected() && (drivesLoading || !backupDrive.value));
+}
+function backupStatus(message, error=false) {
+  const box=document.getElementById("backup-message");
+  box.hidden=!message;
+  box.className=`form-message ${error ? "form-error" : "form-success"}`;
+  box.textContent=message;
+}
+async function refreshUsbDrives() {
+  const previous=backupDrive.value;
+  drivesLoading=true;
+  backupDrive.replaceChildren(new Option("Checking connected drives...", ""));
+  updateGenerateButton();
+  try {
+    const response=await fetch("/api/usb-drives");
+    const data=await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not check USB drives");
+    backupDrive.replaceChildren(new Option(data.drives.length ? "Select USB drive" : "No USB drive", ""));
+    for (const drive of data.drives) {
+      backupDrive.add(new Option(`${drive.label} (${Math.round(drive.free_bytes / 1024 / 1024)} MB free)`, drive.id));
+    }
+    if (data.drives.some(drive => drive.id === previous)) backupDrive.value=previous;
+    backupStatus(data.drives.length ? "" : "Connect and mount a writable USB drive, then refresh.", !data.drives.length);
+  } catch (error) {
+    backupDrive.replaceChildren(new Option("Unable to list USB drives", ""));
+    backupStatus(error.message, true);
+  } finally {
+    drivesLoading=false;
+    updateGenerateButton();
+  }
+}
+if (reportOutput) {
+  reportOutput.addEventListener("change", () => {
+    document.getElementById("report-usb-controls").hidden=!usbSelected();
+    backupDrive.required=usbSelected();
+    backupStatus("");
+    document.getElementById("report-error").hidden=true;
+    document.getElementById("report-preview").hidden=true;
+    reportData=null;
+    updateGenerateButton();
+    if (usbSelected()) refreshUsbDrives();
+  });
+  document.getElementById("refresh-usb").addEventListener("click", refreshUsbDrives);
+  backupDrive.addEventListener("change", () => { backupStatus(""); updateGenerateButton(); });
+}
 function reportDate(value) { return new Date(value).toLocaleString(); }
 async function loadReportOptions() {
   const response=await fetch("/api/capture-report-options"); const data=await response.json();
@@ -89,12 +141,55 @@ async function showReportQr() {
     errorBox.hidden=false;
   }
 }
-document.getElementById("open-report").addEventListener("click",async()=>{ const today=new Date().toISOString().slice(0,10); document.getElementById("report-from-date").value ||= today; document.getElementById("report-to-date").value ||= today; document.getElementById("report-error").hidden=true; try{await loadReportOptions();reportDialog.showModal();}catch(error){alert(error.message);} });
+document.getElementById("open-report").addEventListener("click",async()=>{ const now=new Date(); const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`; document.getElementById("report-from-date").value ||= today; document.getElementById("report-to-date").value ||= today; document.getElementById("report-error").hidden=true; backupStatus(""); try{await loadReportOptions();reportDialog.showModal();if(usbSelected())refreshUsbDrives();}catch(error){alert(error.message);} });
 document.getElementById("close-report").addEventListener("click",()=>reportDialog.close());
 document.getElementById("close-report-qr").addEventListener("click",()=>reportQrDialog.close());
 document.getElementById("expand-report-qr").addEventListener("click",showReportQr);
 document.getElementById("report-range-type").addEventListener("change",event=>{document.querySelectorAll(".report-time-field").forEach(field=>field.hidden=event.target.value!=="custom");});
-document.getElementById("report-form").addEventListener("submit",async event=>{event.preventDefault();const errorBox=document.getElementById("report-error");errorBox.hidden=true;const params=new URLSearchParams({shift:document.getElementById("report-shift").value,custom_time:document.getElementById("report-range-type").value==="custom"?"1":"0",furnace:document.getElementById("report-furnace").value,from_date:document.getElementById("report-from-date").value,to_date:document.getElementById("report-to-date").value,start_time:document.getElementById("report-start-time").value,end_time:document.getElementById("report-end-time").value});try{const response=await fetch(`/api/capture-report?${params}`);const data=await response.json();if(!response.ok)throw new Error(data.error||"Report generation failed");renderReport(data);await showReportQr();}catch(error){errorBox.textContent=error.message;errorBox.hidden=false;}});
+document.getElementById("report-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  if (reportBusy || (usbSelected() && (drivesLoading || !backupDrive.value))) return;
+  const usb=usbSelected();
+  const errorBox=document.getElementById("report-error");
+  errorBox.hidden=true;
+  backupStatus("");
+  const filters={shift:document.getElementById("report-shift").value,
+    custom_time:document.getElementById("report-range-type").value === "custom" ? "1" : "0",
+    furnace:document.getElementById("report-furnace").value,
+    from_date:document.getElementById("report-from-date").value,
+    to_date:document.getElementById("report-to-date").value,
+    start_time:document.getElementById("report-start-time").value,
+    end_time:document.getElementById("report-end-time").value};
+  reportBusy=true;
+  updateGenerateButton();
+  generateReport.textContent=usb ? "Backing up..." : "Generating...";
+  if (reportOutput) reportOutput.disabled=true;
+  try {
+    const response=usb ? await fetch("/api/report-usb-backup", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({...filters, drive_id:backupDrive.value})
+    }) : await fetch(`/api/capture-report?${new URLSearchParams(filters)}`);
+    let data;
+    try { data=await response.json(); }
+    catch { throw new Error(`Report could not finish (server response ${response.status}). Contact admin.`); }
+    if (!response.ok) throw new Error(data.error || "Report generation failed");
+    if (usb) {
+      const summary=data.total_melts === 0 ? "No data: empty CSV and PDF saved" : `${data.total_melts} melts saved as CSV and PDF`;
+      backupStatus(`${summary} to ${data.drive} / Weider Reports`);
+    } else {
+      renderReport(data);
+      await showReportQr();
+    }
+  } catch (error) {
+    if (usb) { await refreshUsbDrives(); backupStatus(error.message, true); }
+    else { errorBox.textContent=error.message; errorBox.hidden=false; }
+  } finally {
+    reportBusy=false;
+    if (reportOutput) reportOutput.disabled=false;
+    generateReport.textContent="Generate";
+    updateGenerateButton();
+  }
+});
 document.getElementById("download-report").addEventListener("click",()=>{if(reportData?.download_url)window.location.href=reportData.download_url;});
 document.getElementById("print-report").addEventListener("click",()=>{if(!reportData)return;const detailRows=reportData.items.map((item,index)=>`<tr><td>${index+1}</td><td>${escapeHtml(item.furnace_name||"-")}</td><td>${escapeHtml(item.melt_number||"-")}</td><td>${escapeHtml(item.shift_type||"Unassigned")}</td><td>${formatLogWeight(item.total_weight)} kg</td><td>${item.product_count}</td><td>${escapeHtml(item.captured_by_username||"Unknown")}</td><td>${reportDate(item.captured_at)}</td></tr>`).join('');const frame=document.getElementById("report-print-frame");const doc=frame.contentDocument;doc.open();doc.write(`<!doctype html><title>Melt Report</title><style>body{font:12px Arial;padding:24px;color:#111}h1{margin:0 0 16px}.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px}.meta div{border:1px solid #ccc;padding:8px}.meta span{display:block;color:#666;font-size:10px}table{width:100%;border-collapse:collapse;margin:10px 0 22px}th,td{border:1px solid #bbb;padding:7px;text-align:left}th{background:#eee}</style><h1>Melt Report</h1><div class="meta"><div><span>Generated by</span>${escapeHtml(reportData.generated_by)}</div><div><span>Generated on</span>${reportDate(reportData.generated_on)}</div><div><span>Shift</span>${escapeHtml(reportData.shift)}</div><div><span>From</span>${escapeHtml(reportData.range_from)}</div><div><span>To</span>${escapeHtml(reportData.range_to)}</div><div><span>Furnace</span>${escapeHtml(reportData.furnace)}</div></div><table><thead><tr><th>S.No</th><th>Furnace</th><th>Melt number</th><th>Shift type</th><th>Total weight</th><th>Products</th><th>Captured by</th><th>Last captured</th></tr></thead><tbody>${detailRows||'<tr><td colspan="8">No data</td></tr>'}</tbody></table><h2>Overall summary</h2><table><thead><tr><th>Melts</th><th>Products</th><th>Total weight</th></tr></thead><tbody><tr><td>${reportData.total_melts}</td><td>${reportData.total_products}</td><td>${formatLogWeight(reportData.total_net_weight)} kg</td></tr></tbody></table>`);doc.close();setTimeout(()=>frame.contentWindow.print(),100);});
 loadCaptureLogs();

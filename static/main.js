@@ -1,6 +1,8 @@
 const $ = id => document.getElementById(id);
 let pollIntervalMs = 200;
 const mainState = {lastId: 0, settings: null, weight: "", weightStable: false, connectingAttempted: false, furnace: null, products: [], activeMelt: null, successSeconds: 10};
+const mainNavigation = document.querySelector(".sidebar nav");
+mainNavigation.insertBefore($("complete-melt-button"), mainNavigation.querySelector('a[href="/"]'));
 let successTimer = null;
 let pendingCaptureId = null;
 let selectingFurnace = false;

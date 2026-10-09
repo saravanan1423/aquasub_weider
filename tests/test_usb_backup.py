@@ -54,6 +54,17 @@ class UsbBackupTests(unittest.TestCase):
         self.assertTrue(pdf_file.read_bytes().startswith(b"%PDF"))
         self.assertGreater(pdf_file.stat().st_size, 1000)
 
+    def test_backup_is_in_log_report_dialog_not_device_settings(self):
+        device = self.client.get("/device-settings")
+        self.assertEqual(device.status_code, 200)
+        self.assertNotIn(b'USB Backup', device.data)
+        self.assertNotIn(b'id="backup-drive"', device.data)
+        logs = self.client.get("/logs")
+        self.assertEqual(logs.status_code, 200)
+        self.assertIn(b'id="report-output"', logs.data)
+        self.assertIn(b'USB backup (CSV + PDF)', logs.data)
+        self.assertIn(b'id="backup-drive"', logs.data)
+
     def test_unlisted_drive_is_rejected(self):
         with patch("core.usb_backup.mounted_usb_drives", return_value=[]):
             response = self.client.post("/api/report-usb-backup", json=self.payload())
@@ -112,6 +123,7 @@ class UsbBackupTests(unittest.TestCase):
             session.update(user_id=user_id, username="operator", role="user")
         self.assertEqual(self.client.get("/api/usb-drives").status_code, 403)
         self.assertEqual(self.client.post("/api/report-usb-backup", json=self.payload()).status_code, 403)
+        self.assertNotIn(b'id="report-output"', self.client.get("/logs").data)
 
 
 if __name__ == "__main__":
