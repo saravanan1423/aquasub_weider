@@ -3,6 +3,7 @@ let pollIntervalMs = 200;
 const mainState = {lastId: 0, rawStream: "", settings: null, weight: "", connectingAttempted: false, furnace: null, products: [], activeMelt: null, successSeconds: 10};
 let successTimer = null;
 let pendingCaptureId = null;
+let selectingFurnace = false;
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 async function requestJson(url, options = {}) { const response = await fetch(url, options); const data = await response.json(); if (!response.ok) { const error = new Error(data.error || "Request failed"); error.code = data.code; throw error; } return data; }
 function numericWeight(value) {
@@ -71,15 +72,41 @@ async function loadFurnaces() {
   $("furnace-grid").innerHTML = furnaces.length ? furnaces.map(item => `<button class="furnace-choice" data-id="${escapeHtml(item.id)}" data-name="${escapeHtml(item.name)}" data-image-url="${escapeHtml(item.image_url)}" type="button"><img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(item.name)}"><span>${escapeHtml(item.name)}</span></button>`).join("") : '<p class="gallery-empty">Add furnace images from Product Master first.</p>';
   document.querySelectorAll(".furnace-choice").forEach(button => button.addEventListener("click", () => selectFurnace(button)));
 }
-function selectFurnace(button) {
-  mainState.furnace = {id: button.dataset.id, name: button.dataset.name, imageUrl: button.dataset.imageUrl};
-  document.querySelectorAll(".furnace-choice").forEach(item => item.classList.remove("selected"));
-  button.classList.add("selected");
-  $("product-selector-title").textContent = `${mainState.furnace.name} products`;
-  showFurnaceProducts();
-  $("furnace-selector").hidden = true;
-  $("product-selector").hidden = false;
-  $("main-product-context").hidden = false;
+function restoreActiveMelt(melt) {
+  mainState.activeMelt = melt ? {number:melt.melt_number, serial:melt.melt_serial,
+    furnaceId:String(melt.furnace_id), captureIds:melt.capture_ids, totalWeight:melt.melt_total_weight} : null;
+}
+async function selectFurnace(button, recoveredMelt) {
+  if (selectingFurnace) return;
+  selectingFurnace = true;
+  button.disabled = true;
+  try {
+    const melt = recoveredMelt === undefined
+      ? (await requestJson(`/api/melts/unfinished?furnace_id=${encodeURIComponent(button.dataset.id)}`)).melt
+      : recoveredMelt;
+    mainState.furnace = {id: button.dataset.id, name: button.dataset.name, imageUrl: button.dataset.imageUrl};
+    restoreActiveMelt(melt);
+    document.querySelectorAll(".furnace-choice").forEach(item => item.classList.remove("selected"));
+    button.classList.add("selected");
+    $("product-selector-title").textContent = `${mainState.furnace.name} products`;
+    showFurnaceProducts();
+    $("furnace-selector").hidden = true;
+    $("product-selector").hidden = false;
+    $("main-product-context").hidden = false;
+    if (melt) {
+      const selected = $("main-product-grid").querySelector(`[data-id="${melt.last_product_id}"]`);
+      if (selected) selected.classList.add("selected");
+    }
+    updateCompleteButtons();
+  } catch (error) {
+    const message = $("capture-message");
+    message.className = "capture-message failure";
+    message.textContent = error.message;
+    message.hidden = false;
+  } finally {
+    selectingFurnace = false;
+    button.disabled = false;
+  }
 }
 async function captureWeight(button) {
   const message = $("capture-message"); message.hidden = true; button.disabled = true;
@@ -91,11 +118,7 @@ async function captureWeight(button) {
       payload.melt_serial = mainState.activeMelt.serial;
     }
     const result = await requestJson("/api/weight-captures", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
-    if (!mainState.activeMelt) {
-      mainState.activeMelt = {number:result.melt_number, serial:result.melt_serial, furnaceId:String(result.furnace_id), captureIds:[], totalWeight:0};
-    }
-    mainState.activeMelt.captureIds.push(result.id);
-    mainState.activeMelt.totalWeight = result.melt_total_weight ?? (mainState.activeMelt.totalWeight + numericWeight(result.weight));
+    restoreActiveMelt(result);
     mainState.successSeconds = result.success_display_seconds ?? mainState.successSeconds;
     updateCompleteButtons();
     document.querySelectorAll(".product-choice").forEach(item => item.classList.remove("selected")); button.classList.add("selected");
@@ -208,6 +231,21 @@ $("furnace-back").addEventListener("click", () => {
 });
 async function initializeMain() {
   try {
+    await loadFurnaces();
+    await loadProducts();
+    const {melt} = await requestJson("/api/melts/unfinished");
+    if (melt) {
+      const button = $("furnace-grid").querySelector(`[data-id="${melt.furnace_id}"]`);
+      if (button) await selectFurnace(button, melt);
+    }
+  } catch (error) {
+    const message = $("capture-message");
+    message.className = "capture-message failure";
+    message.textContent = error.message;
+    message.hidden = false;
+    return;
+  }
+  try {
     mainState.settings = await requestJson("/api/settings");
     const displaySettings = await requestJson("/api/capture-display-settings").catch(() => ({success_display_seconds: 10}));
     mainState.successSeconds = displaySettings.success_display_seconds;
@@ -216,6 +254,6 @@ async function initializeMain() {
     const status = await requestJson("/api/data?after=0");
     if (!status.connected && !status.connecting) await requestJson("/api/connect", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(mainState.settings)});
   } catch (error) { setStatus(false, false, error.message); }
-  await loadFurnaces(); await loadProducts(); pollScale();
+  pollScale();
 }
 initializeMain();

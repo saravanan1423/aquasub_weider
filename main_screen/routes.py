@@ -176,6 +176,46 @@ def melt_totals(connection, furnace_id, melt_number):
     ).fetchall()
     return {"melt_count": len(rows), "melt_total_weight": sum(numeric_weight(row["weight"]) for row in rows)}
 
+
+def unfinished_melt(connection, furnace_id=None):
+    row = connection.execute("""
+        SELECT c.furnace_id,c.melt_number,c.melt_serial,
+               f.image_name AS furnace_name,f.image_url AS furnace_image_url
+        FROM weight_captures c JOIN product_images f ON CAST(f.id AS TEXT)=c.furnace_id
+        WHERE f.image_type='furnace' AND c.melt_completed_at IS NULL
+          AND c.melt_number IS NOT NULL AND c.melt_serial IS NOT NULL
+          AND (? IS NULL OR c.furnace_id=?)
+          AND NOT EXISTS (
+              SELECT 1 FROM weight_captures done
+              WHERE done.furnace_id=c.furnace_id AND done.melt_number=c.melt_number
+                AND done.melt_completed_at IS NOT NULL
+          )
+        ORDER BY c.id DESC LIMIT 1
+    """, (str(furnace_id) if furnace_id is not None else None,
+          str(furnace_id) if furnace_id is not None else None)).fetchone()
+    if row is None:
+        return None
+    captures = connection.execute(
+        "SELECT id,product_image_id,weight FROM weight_captures WHERE furnace_id=? AND melt_number=? ORDER BY id",
+        (row["furnace_id"], row["melt_number"]),
+    ).fetchall()
+    return {"furnace_id": row["furnace_id"], "furnace_name": row["furnace_name"],
+            "furnace_image_url": row["furnace_image_url"], "melt_number": row["melt_number"],
+            "melt_serial": row["melt_serial"], "capture_ids": [item["id"] for item in captures],
+            "melt_count": len(captures), "melt_total_weight": sum(numeric_weight(item["weight"]) for item in captures),
+            "last_product_id": captures[-1]["product_image_id"]}
+
+
+@main_bp.get("/api/melts/unfinished")
+def get_unfinished_melt():
+    furnace_id = request.args.get("furnace_id")
+    if furnace_id is not None:
+        try: furnace_id = int(furnace_id)
+        except ValueError: return jsonify({"ok": False, "error": "Select a valid furnace"}), 400
+    with database_connection() as connection:
+        melt = unfinished_melt(connection, furnace_id)
+    return jsonify({"ok": True, "melt": melt})
+
 @main_bp.post("/api/weight-captures")
 def create_weight_capture():
     payload = request.get_json(silent=True) or {}; weight = str(payload.get("weight", "")).strip()
@@ -196,12 +236,17 @@ def create_weight_capture():
         melt_number = str(payload.get("melt_number", "")).strip().upper()
         try: melt_serial = int(payload.get("melt_serial")) if payload.get("melt_serial") not in (None, "") else None
         except (TypeError, ValueError): melt_serial = None
+        active = unfinished_melt(connection, furnace_id)
         prefix = furnace_prefix(furnace["name"])
-        if not melt_number or melt_serial is None:
+        if active:
+            if (melt_number and melt_number != active["melt_number"]) or (melt_serial is not None and melt_serial != active["melt_serial"]):
+                return jsonify({"ok": False, "error": "The active melt has changed. Reload the Main Screen to continue."}), 409
+            melt_number, melt_serial = active["melt_number"], active["melt_serial"]
+        elif melt_number or melt_serial is not None:
+            return jsonify({"ok": False, "error": "This melt is no longer open. Reload the Main Screen before capturing."}), 409
+        else:
             melt_serial, _ = next_melt_serial(connection, furnace_id, furnace["melt_start_serial"])
             melt_number = f"{prefix}{melt_serial}"
-        elif melt_number != f"{prefix}{melt_serial}":
-            return jsonify({"ok": False, "error": "The active melt number does not match this furnace"}), 400
         settings = connection.execute(
             "SELECT individual_threshold_kg, melt_threshold_kg FROM melt_threshold_settings WHERE id=1"
         ).fetchone()
@@ -223,8 +268,9 @@ def create_weight_capture():
         captured_at = datetime.now().astimezone().isoformat(timespec="milliseconds")
         cursor = connection.execute("INSERT INTO weight_captures (product_image_id,image_name,image_url,weight,furnace_id,furnace_name,furnace_image_url,melt_number,melt_serial,captured_at,captured_by_user_id,captured_by_username) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (image["id"],image["image_name"],image["image_url"],weight,str(furnace_id),furnace["name"],furnace["image_url"],melt_number,melt_serial,captured_at,session["user_id"],session["username"]))
         totals = melt_totals(connection, furnace_id, melt_number)
+        capture_ids = unfinished_melt(connection, furnace_id)["capture_ids"]
         display = connection.execute("SELECT success_display_seconds FROM capture_display_settings WHERE id=1").fetchone()
-    return jsonify({"ok": True,"id":cursor.lastrowid,"image_name":image["image_name"],"image_url":image["image_url"],"weight":weight,"furnace_id":furnace_id,"furnace_name":furnace["name"],"furnace_image_url":furnace["image_url"],"melt_number":melt_number,"melt_serial":melt_serial,**totals,"captured_at":captured_at,"success_display_seconds":display["success_display_seconds"] if display else 10}), 201
+    return jsonify({"ok": True,"id":cursor.lastrowid,"image_name":image["image_name"],"image_url":image["image_url"],"weight":weight,"furnace_id":furnace_id,"furnace_name":furnace["name"],"furnace_image_url":furnace["image_url"],"melt_number":melt_number,"melt_serial":melt_serial,"capture_ids":capture_ids,**totals,"captured_at":captured_at,"success_display_seconds":display["success_display_seconds"] if display else 10}), 201
 
 @main_bp.post("/api/melts/complete")
 def complete_melt():
@@ -237,17 +283,21 @@ def complete_melt():
     if not isinstance(capture_ids, list) or not capture_ids: return jsonify({"ok": False, "error": "Add at least one product before completing the melt"}), 400
     try: capture_ids = [int(item) for item in capture_ids]
     except (TypeError, ValueError): return jsonify({"ok": False, "error": "Invalid melt captures"}), 400
-    placeholders = ",".join("?" for _ in capture_ids)
+    if len(set(capture_ids)) != len(capture_ids): return jsonify({"ok": False, "error": "Invalid melt captures"}), 400
     completed_at = datetime.now().astimezone().isoformat(timespec="milliseconds")
     with database_connection() as connection:
+        connection.execute("BEGIN IMMEDIATE")
         rows = connection.execute(
-            f"SELECT id,weight FROM weight_captures WHERE id IN ({placeholders}) AND furnace_id=? AND melt_number=? AND captured_by_user_id=?",
-            (*capture_ids, str(furnace_id), melt_number, session["user_id"]),
+            "SELECT id,weight,melt_completed_at FROM weight_captures WHERE furnace_id=? AND melt_number=?",
+            (str(furnace_id), melt_number),
         ).fetchall()
-        if len(rows) != len(capture_ids): return jsonify({"ok": False, "error": "The active melt captures could not be verified"}), 400
+        if not rows or any(row["melt_completed_at"] is not None for row in rows):
+            return jsonify({"ok": False, "error": "This melt is no longer open. Reload the Main Screen."}), 409
+        if {row["id"] for row in rows} != set(capture_ids):
+            return jsonify({"ok": False, "error": "The melt captures have changed. Reload the Main Screen before completing."}), 409
         connection.execute(
-            f"UPDATE weight_captures SET melt_completed_at=? WHERE id IN ({placeholders})",
-            (completed_at, *capture_ids),
+            "UPDATE weight_captures SET melt_completed_at=? WHERE furnace_id=? AND melt_number=?",
+            (completed_at, str(furnace_id), melt_number),
         )
         total_weight = sum(numeric_weight(row["weight"]) for row in rows)
     return jsonify({"ok": True, "melt_number": melt_number, "melt_count": len(rows), "melt_total_weight": total_weight, "melt_completed_at": completed_at})
@@ -255,9 +305,11 @@ def complete_melt():
 @main_bp.post("/api/weight-captures/<int:capture_id>/cancel")
 def cancel_weight_capture(capture_id):
     with database_connection() as connection:
-        capture = connection.execute("SELECT id,captured_by_user_id,captured_at FROM weight_captures WHERE id=?", (capture_id,)).fetchone()
+        connection.execute("BEGIN IMMEDIATE")
+        capture = connection.execute("SELECT id,captured_by_user_id,captured_at,melt_completed_at FROM weight_captures WHERE id=?", (capture_id,)).fetchone()
         if capture is None: return jsonify({"ok":False,"error":"Capture not found or already cancelled"}),404
         if capture["captured_by_user_id"] != session["user_id"]: return jsonify({"ok":False,"error":"You can only cancel your own capture"}),403
+        if capture["melt_completed_at"] is not None: return jsonify({"ok":False,"error":"This melt is already completed"}),409
         display = connection.execute("SELECT success_display_seconds FROM capture_display_settings WHERE id=1").fetchone()
         cancellation_seconds = max(15, (display["success_display_seconds"] if display else 10) + 2)
         captured_time=datetime.fromisoformat(capture["captured_at"])

@@ -31,7 +31,7 @@ def required_permissions():
     if path.endswith("/cancel") and path.startswith("/api/weight-captures/"): return {"main"}
     if path.startswith("/api/weight-captures/"): return {"admin"}
     if path == "/api/weight-captures": return {"main"} if method == "POST" else {"logs"}
-    if path == "/api/melts/complete": return {"main"}
+    if path in {"/api/melts/complete", "/api/melts/unfinished"}: return {"main"}
     if path in {"/api/capture-report", "/api/capture-report-options"}: return {"logs"}
     if path == "/api/product-images": return {"main", "products"} if method == "GET" else {"products"}
     if path.startswith("/api/product-images/"): return {"products"}

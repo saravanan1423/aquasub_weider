@@ -148,6 +148,7 @@ def initialize_database(app):
             connection.execute("ALTER TABLE weight_captures ADD COLUMN melt_serial INTEGER")
         if "melt_completed_at" not in capture_columns:
             connection.execute("ALTER TABLE weight_captures ADD COLUMN melt_completed_at TEXT")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_weight_captures_open_melt ON weight_captures(furnace_id,melt_number,melt_completed_at)")
         device_columns = {row[1] for row in connection.execute("PRAGMA table_info(device_settings)")}
         # Carry forward limits saved before they moved to Melt Number Settings.
         if {"individual_threshold_kg", "melt_threshold_kg"} <= device_columns:
