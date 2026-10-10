@@ -127,12 +127,17 @@
       else insert(key==="space" ? " " : shifted ? key.toUpperCase() : key);
     }));
   }
-  document.addEventListener("focusin", event => {
-    if (!accepted(event.target)) return;
-    target=event.target; shifted=false; specialMode=false;
+  function openKeyboard(element) {
+    if (!accepted(element)) return;
+    const redraw = target !== element || panel.hidden;
+    target=element;
+    if (redraw) { shifted=false; specialMode=false; }
     const modal=target.closest("dialog"); (modal || document.body).appendChild(panel);
-    panel.hidden=false; draw();
-  });
+    panel.hidden=false;
+    if (redraw) draw();
+  }
+  document.addEventListener("focusin", event => openKeyboard(event.target));
+  document.addEventListener("click", event => openKeyboard(event.target));
   document.addEventListener("input", event => { if (event.target===target) preview(); });
   document.body.append(panel);
 })();

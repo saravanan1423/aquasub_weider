@@ -1,4 +1,18 @@
 (() => {
+  const password = document.getElementById("password");
+  const passwordToggle = document.getElementById("toggle-password");
+  if (password && passwordToggle) {
+    passwordToggle.addEventListener("mousedown", event => event.preventDefault());
+    passwordToggle.addEventListener("click", () => {
+      const visible = password.type === "password";
+      password.type = visible ? "text" : "password";
+      passwordToggle.classList.toggle("password-visible", visible);
+      passwordToggle.setAttribute("aria-pressed", String(visible));
+      passwordToggle.setAttribute("aria-label", visible ? "Hide password" : "Show password");
+      passwordToggle.title = visible ? "Hide password" : "Show password";
+      password.dispatchEvent(new Event("input", {bubbles: true}));
+    });
+  }
   const field = document.querySelector(".login-username-field");
   const input = document.getElementById("username");
   const suggestions = document.getElementById("username-suggestions");

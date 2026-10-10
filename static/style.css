@@ -1,5 +1,12 @@
 :root { color-scheme: dark; --bg:#07100f; --panel:#101b19; --panel2:#14221f; --line:#263a35; --muted:#8ba09a; --text:#ecf5f2; --accent:#4de3a4; --accent2:#27bb80; --danger:#ff786c; }
 * { box-sizing:border-box; }
+.login-password-control { position:relative; }
+.login-password-control input { padding-right:48px; }
+.password-visibility-toggle { position:absolute; inset:1px 1px 1px auto; width:42px; height:calc(100% - 2px); display:grid; place-items:center; padding:0; border:0; background:transparent; color:var(--muted); }
+.password-visibility-toggle:hover,.password-visibility-toggle:focus-visible { color:var(--accent); }
+.password-visibility-toggle:focus-visible { outline:2px solid var(--accent); outline-offset:-4px; }
+.password-visibility-icon { width:20px; height:20px; background:currentColor; mask:url("/static/icons/eye.svg") center/contain no-repeat; }
+.password-visible .password-visibility-icon { mask-image:url("/static/icons/eye-off.svg"); }
 html { -webkit-touch-callout:none; }
 body { -webkit-user-select:none; user-select:none; }
 img, a { -webkit-user-drag:none; -webkit-touch-callout:none; }

@@ -11,9 +11,9 @@
     {% if error %}<div class="login-error">{{ error }}</div>{% endif %}
     <form method="post" class="login-form">
       <div class="field login-username-field"><label for="username">Username</label><input id="username" name="username" type="text" value="{{ selected_username }}" autocomplete="off" aria-autocomplete="list" aria-controls="username-suggestions" aria-expanded="false" required autofocus><div id="username-suggestions" class="username-suggestions" hidden>{% for username in usernames %}<button type="button" data-username="{{ username }}">{{ username }}</button>{% endfor %}</div></div>
-      <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required></div>
+      <div class="field"><label for="password">Password</label><div class="login-password-control"><input id="password" name="password" type="password" autocomplete="current-password" required><button class="password-visibility-toggle" id="toggle-password" type="button" title="Show password" aria-label="Show password" aria-controls="password" aria-pressed="false"><span class="password-visibility-icon" aria-hidden="true"></span></button></div></div>
       <button class="primary" type="submit">Sign in</button>
     </form>
-  </main><script src="{{ url_for('static', filename='fullscreen.js', v='5') }}" data-admin="false"></script><script src="{{ url_for('static', filename='login.js') }}"></script><script src="{{ url_for('static', filename='keyboard.js') }}"></script>
+  </main><script src="{{ url_for('static', filename='fullscreen.js', v='5') }}" data-admin="false"></script><script src="{{ url_for('static', filename='login.js', v='2') }}"></script><script src="{{ url_for('static', filename='keyboard.js', v='2') }}"></script>
 </body>
 </html>
