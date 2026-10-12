@@ -27,8 +27,9 @@ def required_permissions():
     if path == "/api/capture-display-settings": return {"admin"} if method == "PUT" else {"main", "melts"}
     if path == "/images": return {"products"}
     if path == "/logs": return {"logs"}
+    if path in {"/api/automatic-backups", "/api/usb-drives", "/api/report-usb-backup"}: return {"logs"}
     if path in {"/api/device-network", "/api/desktop/top-bar"}: return {"admin"}
-    if path in {"/users", "/device-settings", "/api/device-settings", "/api/usb-drives", "/api/report-usb-backup"} or path.startswith("/api/users") or path in {"/api/change-password", "/api/rustdesk/open"}: return {"admin"}
+    if path in {"/users", "/device-settings", "/api/device-settings"} or path.startswith("/api/users") or path in {"/api/change-password", "/api/rustdesk/open"}: return {"admin"}
     if path.endswith("/cancel") and path.startswith("/api/weight-captures/"): return {"main"}
     if path.startswith("/api/weight-captures/"): return {"admin"}
     if path == "/api/weight-captures": return {"main"} if method == "POST" else {"logs"}

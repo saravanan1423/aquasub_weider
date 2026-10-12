@@ -109,6 +109,29 @@ def initialize_database(app):
                 success_display_seconds INTEGER NOT NULL DEFAULT 10,
                 updated_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS automatic_backup_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                started_at TEXT NOT NULL,
+                last_checked_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS automatic_backup_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_key TEXT NOT NULL UNIQUE,
+                shift_id INTEGER NOT NULL,
+                shift_name TEXT NOT NULL,
+                starts_at TEXT NOT NULL,
+                ends_at TEXT NOT NULL,
+                reports_json TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                attempts INTEGER NOT NULL DEFAULT 0,
+                lock_token TEXT,
+                lease_until TEXT,
+                last_error TEXT NOT NULL DEFAULT '',
+                completed_at TEXT,
+                drive TEXT,
+                folder TEXT,
+                UNIQUE(shift_id, starts_at, ends_at)
+            );
         """)
         columns = {row[1] for row in connection.execute("PRAGMA table_info(users)")}
         if "role" not in columns:

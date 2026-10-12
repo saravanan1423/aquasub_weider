@@ -24,6 +24,7 @@
         <button type="button" id="next-page">Next →</button>
       </div>
       <div class="logs-error" id="logs-error" hidden></div>
+      <div class="automatic-backup-status" id="automatic-backup-status" role="status" hidden></div>
     </section>
   </main>
   {% if is_admin %}
@@ -43,9 +44,7 @@
     <div class="dialog-title"><h2>Generate capture report</h2><button type="button" id="close-report">×</button></div>
     <form id="report-form" class="report-filters">
       <div class="field"><label for="report-type">Report type</label><select id="report-type"><option value="melt">Melt summary</option><option value="individual">Individual captures</option></select></div>
-      {% if is_admin %}
       <div class="field"><label for="report-output">Report output</label><select id="report-output"><option value="share">Share / QR code</option><option value="usb">USB backup (CSV + PDF)</option></select></div>
-      {% endif %}
       <div class="field"><label for="report-shift">Shift</label><select id="report-shift"><option value="all">All shifts combined</option></select></div>
       <div class="field"><label for="report-range-type">Range type</label><select id="report-range-type"><option value="date">Date range</option><option value="custom">Custom date and time</option></select></div>
       <div class="field"><label for="report-furnace">Furnace</label><select id="report-furnace"><option value="all">All furnaces</option></select></div>
@@ -53,12 +52,10 @@
       <div class="field"><label for="report-to-date">To date</label><input id="report-to-date" type="date" required></div>
       <div class="field report-time-field" hidden><label for="report-start-time">From time</label><input id="report-start-time" type="time" value="00:00"></div>
       <div class="field report-time-field" hidden><label for="report-end-time">To time</label><input id="report-end-time" type="time" value="23:59"></div>
-      {% if is_admin %}
       <div class="report-usb-controls" id="report-usb-controls" hidden>
         <div class="field"><label for="backup-drive">USB drive</label><select id="backup-drive"><option value="">Select USB drive</option></select></div>
         <button class="icon-button" id="refresh-usb" type="button" title="Refresh USB drives" aria-label="Refresh USB drives">&#8635;</button>
       </div>
-      {% endif %}
       <button class="primary" id="generate-report" type="submit">Generate</button>
     </form>
     <div class="form-message" id="backup-message" role="status" aria-live="polite" hidden></div>
@@ -79,7 +76,7 @@
   <iframe id="report-print-frame" title="Printable report" hidden></iframe>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
   <script>window.LOG_ADMIN = {{ 'true' if is_admin else 'false' }};</script>
-  <script src="{{ url_for('static', filename='capture_logs.js', v='6') }}"></script>
+  <script src="{{ url_for('static', filename='capture_logs.js', v='7') }}"></script>
   <script src="{{ url_for('static', filename='fullscreen.js', v='5') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>

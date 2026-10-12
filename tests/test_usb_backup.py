@@ -112,18 +112,44 @@ class UsbBackupTests(unittest.TestCase):
         self.assertEqual(response.status_code, 500)
         self.assertIn("Could not create the backup report", response.json["error"])
 
-    def test_backup_requires_admin(self):
+    def login_operator(self, logs_access=True):
         with app.app_context():
             connection = database_connection()
             user_id = connection.execute("INSERT INTO users (username,password_hash,role,created_at) VALUES ('operator','unused','user','2026-10-08')").lastrowid
-            connection.execute("INSERT INTO user_permissions (user_id,screen) VALUES (?, 'logs')", (user_id,))
+            if logs_access:
+                connection.execute("INSERT INTO user_permissions (user_id,screen) VALUES (?, 'logs')", (user_id,))
             connection.commit()
             connection.close()
         with self.client.session_transaction() as session:
             session.update(user_id=user_id, username="operator", role="user")
+
+    def test_operator_with_logs_access_can_backup(self):
+        self.login_operator()
+        logs = self.client.get("/logs")
+        self.assertEqual(logs.status_code, 200)
+        self.assertIn(b'id="report-output"', logs.data)
+        self.assertIn(b'id="backup-drive"', logs.data)
+        self.assertNotIn(b'id="edit-log-dialog"', logs.data)
+        with patch("core.usb_backup.mounted_usb_drives", return_value=[self.drive]), patch.object(Path, "is_mount", return_value=True):
+            self.assertEqual(self.client.get("/api/usb-drives").json["drives"], [self.drive])
+            for report_type in ("melt", "individual"):
+                response = self.client.post("/api/report-usb-backup", json={**self.payload(), "report_type": report_type})
+                self.assertEqual(response.status_code, 200, response.json)
+                self.assertTrue(all((Path(response.json["folder"]) / filename).exists() for filename in response.json["files"]))
+        self.assertEqual(self.client.get("/device-settings").status_code, 403)
+        self.assertEqual(self.client.get("/users").status_code, 403)
+
+    def test_backup_requires_logs_access(self):
+        self.login_operator(logs_access=False)
         self.assertEqual(self.client.get("/api/usb-drives").status_code, 403)
         self.assertEqual(self.client.post("/api/report-usb-backup", json=self.payload()).status_code, 403)
-        self.assertNotIn(b'id="report-output"', self.client.get("/logs").data)
+        self.assertEqual(self.client.get("/logs").status_code, 403)
+
+    def test_backup_requires_login(self):
+        with self.client.session_transaction() as session:
+            session.clear()
+        self.assertEqual(self.client.get("/api/usb-drives").status_code, 401)
+        self.assertEqual(self.client.post("/api/report-usb-backup", json=self.payload()).status_code, 401)
 
 
 if __name__ == "__main__":

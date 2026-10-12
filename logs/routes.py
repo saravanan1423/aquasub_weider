@@ -77,6 +77,12 @@ def report_share_host():
 @logs_bp.get("/logs")
 def page(): return render_template("capture_logs.html")
 
+
+@logs_bp.get("/api/automatic-backups")
+def automatic_backups():
+    from core.shift_backup import backup_status
+    return jsonify({"ok":True, **backup_status()})
+
 @logs_bp.get("/api/weight-captures")
 def captures():
     if "page" in request.args:
@@ -121,7 +127,7 @@ def shift_name_for_capture(captured_at, shifts):
     return "Unassigned"
 
 
-def build_capture_report(params, username):
+def build_capture_report(params, username, *, end_exclusive=False):
     report_type=params.get("report_type", "melt")
     if report_type not in ("melt", "individual"):
         raise ValueError("Select a valid report type")
@@ -160,7 +166,8 @@ def build_capture_report(params, username):
             shift_date=captured_date-timedelta(days=1) if overnight and captured_time<end else captured_date
             active=(start <= captured_time < end) if not overnight else (captured_time>=start or captured_time<end)
             include=active and from_date <= shift_date <= to_date
-        if custom_mode: include=include and custom_start <= captured <= custom_end
+        if custom_mode:
+            include=include and custom_start <= captured and (captured < custom_end if end_exclusive else captured <= custom_end)
         if furnace_value!="all" and str(capture["furnace_id"])!=furnace_value: include=False
         if include:
             item=dict(capture); item["captured_at"]=captured.isoformat(timespec="seconds"); item["numeric_weight"]=numeric_weight(capture["weight"]); item["shift_type"]=shift_name_for_capture(capture["captured_at"],shifts); filtered.append(item)

@@ -1,4 +1,6 @@
 import json
+import hashlib
+import errno
 import os
 import shutil
 import subprocess
@@ -52,38 +54,100 @@ def mounted_usb_drives():
     return drives
 
 
-def backup_report(report, drive_id):
+def resolve_drive(drive_id):
     drive = next((item for item in mounted_usb_drives() if item["id"] == drive_id), None)
     if drive is None:
         raise ValueError("USB drive is not available. Refresh the drive list and try again.")
+    return drive
+
+
+def sync_directory(path):
+    if os.name != "posix":
+        return
+    descriptor=os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        try:
+            os.fsync(descriptor)
+        except OSError as error:
+            if error.errno not in {errno.EINVAL, errno.ENOTSUP}:
+                raise
+    finally:
+        os.close(descriptor)
+
+
+def write_usb_files(drive, name, files):
     root = Path(drive["mountpoint"])
-    csv_data, pdf_data = report_csv(report), report_pdf(report)
-    if shutil.disk_usage(root).free < len(csv_data) + len(pdf_data) + 1024 * 1024:
+    if shutil.disk_usage(root).free < sum(len(content) for content in files.values()) + 1024 * 1024:
         raise OSError("Not enough free space on the USB drive")
     if not root.is_mount():
         raise OSError("USB drive was removed during backup")
     parent = root / "Weider Reports"
     parent.mkdir(exist_ok=True)
-    timestamp = datetime.now().astimezone().strftime("%Y%m%d_%H%M%S")
-    prefix = "Individual_Captures_Report" if report.get("report_type") == "individual" else "Melt_Report"
-    name = f"{prefix}_{timestamp}_{uuid.uuid4().hex[:6]}"
-    staged, final = parent / f".{name}.partial", parent / name
+    staged, final = parent / f".{name}.{uuid.uuid4().hex[:6]}.partial", parent / name
     staged.mkdir()
-    filenames = (f"{name}.csv", f"{name}.pdf")
     try:
-        for filename, content in zip(filenames, (csv_data, pdf_data)):
+        for filename, content in files.items():
             with (staged / filename).open("wb") as file:
                 file.write(content)
                 file.flush()
                 os.fsync(file.fileno())
         if not root.is_mount():
             raise OSError("USB drive was removed during backup")
+        sync_directory(staged)
         os.replace(staged, final)
+        sync_directory(parent)
     finally:
         if staged.exists():
-            for filename in filenames:
+            for filename in files:
                 (staged / filename).unlink(missing_ok=True)
             staged.rmdir()
-    return {"drive": drive["label"], "folder": str(final), "files": list(filenames),
+    return {"drive": drive["label"], "folder": str(final), "files": list(files)}
+
+
+def backup_report(report, drive_id):
+    drive=resolve_drive(drive_id)
+    timestamp = datetime.now().astimezone().strftime("%Y%m%d_%H%M%S")
+    prefix = "Individual_Captures_Report" if report.get("report_type") == "individual" else "Melt_Report"
+    name = f"{prefix}_{timestamp}_{uuid.uuid4().hex[:6]}"
+    files={f"{name}.csv":report_csv(report), f"{name}.pdf":report_pdf(report)}
+    return {**write_usb_files(drive, name, files),
             "total_melts": report["total_melts"], "total_products": report["total_products"],
             "report_type": report.get("report_type", "melt"), "total_weight": report["total_net_weight"]}
+
+
+def backup_shift_reports(reports, drive_id, job_key):
+    # A stable directory and checksum manifest make crash retries idempotent.
+    key=uuid.UUID(job_key).hex
+    drive=resolve_drive(drive_id)
+    root=Path(drive["mountpoint"])
+    if not root.is_mount():
+        raise OSError("USB drive was removed during backup")
+    day=datetime.fromisoformat(reports["melt"]["range_from"]).strftime("%Y%m%d_%H%M")
+    name=f"Shift_Backup_{day}_{key}"
+    folder=root / "Weider Reports" / name
+    payload_hash=hashlib.sha256(json.dumps(reports, sort_keys=True).encode("utf-8")).hexdigest()
+    filenames=["Melt_Summary.csv", "Melt_Summary.pdf", "Individual_Captures.csv", "Individual_Captures.pdf"]
+    if folder.exists():
+        try:
+            manifest=json.loads((folder / ".backup.json").read_text(encoding="utf-8"))
+            valid=(manifest["job_key"] == key and manifest["payload_hash"] == payload_hash
+                   and set(manifest["files"]) == set(filenames)
+                   and all(hashlib.sha256((folder / file).read_bytes()).hexdigest() == manifest["files"][file] for file in filenames))
+        except (OSError, ValueError, KeyError, TypeError):
+            valid=False
+        if not valid:
+            raise OSError("Existing shift backup is incomplete or damaged. Use another USB drive or contact admin.")
+        if not root.is_mount():
+            raise OSError("USB drive was removed during backup")
+        sync_directory(folder.parent)
+        return {"drive":drive["label"], "folder":str(folder), "files":filenames}
+    files={}
+    for report_type, prefix in (("melt", "Melt_Summary"), ("individual", "Individual_Captures")):
+        files[f"{prefix}.csv"]=report_csv(reports[report_type])
+        files[f"{prefix}.pdf"]=report_pdf(reports[report_type])
+    manifest={"job_key":key, "payload_hash":payload_hash,
+              "files":{file:hashlib.sha256(content).hexdigest() for file, content in files.items()}}
+    files[".backup.json"]=json.dumps(manifest, sort_keys=True).encode("utf-8")
+    result=write_usb_files(drive, name, files)
+    result["files"]=filenames
+    return result

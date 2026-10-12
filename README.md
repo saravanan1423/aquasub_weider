@@ -109,6 +109,37 @@ need root, sudo privileges, or NetworkManager modification permissions.
 An optional NetworkManager polkit rule/group created for the removed Wi-Fi
 feature is no longer needed and may be removed by the Pi administrator.
 
+## Automatic shift USB backups
+
+At the end of every configured shift, the app queues a frozen report of that
+shift's captures. It checks every 15 seconds for a mounted, writable USB drive.
+If no drive is available, the job waits in SQLite and survives app restarts and
+power loss. Missed shift endings are checked when the app starts again.
+
+Each shift backup contains `Melt_Summary.csv`, `Melt_Summary.pdf`,
+`Individual_Captures.csv`, and `Individual_Captures.pdf` in a separate folder
+under `Weider Reports` on the USB drive. Empty shifts still produce valid
+reports. Backing up does not mark unfinished melts as completed. The Logs
+screen shows pending, saving, and last-saved status.
+
+Admins and operators with Logs access can also create a manual USB backup
+from **Logs > Generate report > USB backup (CSV + PDF)**. Device Settings,
+user management, and capture editing remain admin-only.
+
+Use the Pi's correct local clock and timezone. The first startup enables
+monitoring from that point; it does not export historical completed shifts.
+USB drives must be mounted by Raspberry Pi OS under `/media`, `/mnt`, or
+`/run/media` and writable by the user running the app. A full, read-only, or
+unplugged drive leaves the job pending for another attempt. Keep the app
+running for automatic backup; pending jobs resume after it starts again.
+
+The worker starts with `python app.py` or `flask --app app run`. For a WSGI
+deployment, run this additional persistent process using the same app database:
+
+```bash
+flask --app app shift-backup-worker
+```
+
 ## Linux serial-port setup
 
 List connected serial devices:

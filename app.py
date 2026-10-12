@@ -50,6 +50,15 @@ def create_app():
     application.register_blueprint(logs_bp)
     register_auth(application)
 
+    @application.cli.command("shift-backup-worker")
+    def shift_backup_worker_command():
+        from core.shift_backup import ShiftBackupWorker
+        worker=ShiftBackupWorker(application)
+        try:
+            worker.run_forever()
+        except KeyboardInterrupt:
+            worker.stop()
+
     @application.after_request
     def prevent_stale_ui(response):
         if response.mimetype in {"text/html", "text/css", "application/javascript", "text/javascript"}:
@@ -62,6 +71,11 @@ def create_app():
 
 
 app = create_app()
+
+# Normal imports (including tests) do not start background database writers.
+if os.environ.get("FLASK_RUN_FROM_CLI") == "true":
+    from core.shift_backup import start_shift_backup_worker
+    start_shift_backup_worker(app)
 
 
 def find_browser():
@@ -129,6 +143,8 @@ def open_fullscreen_browser(url, host, port):
 
 
 if __name__ == "__main__":
+    from core.shift_backup import start_shift_backup_worker
+    start_shift_backup_worker(app)
     host = "127.0.0.1"
     port = 5000
     url = f"http://{host}:{port}"

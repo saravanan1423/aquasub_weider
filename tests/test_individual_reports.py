@@ -123,7 +123,7 @@ class IndividualReportTests(unittest.TestCase):
             session.update(user_id=user_id, username="report-operator", role="user")
         page = self.fixture.client.get("/logs")
         self.assertIn(b'id="report-type"', page.data)
-        self.assertNotIn(b'id="report-output"', page.data)
+        self.assertIn(b'id="report-output"', page.data)
         with patch("logs.routes.report_share_host", return_value="192.168.1.50"):
             response = self.fixture.client.get("/api/capture-report", query_string=self.params)
         self.assertEqual(response.status_code, 200)
