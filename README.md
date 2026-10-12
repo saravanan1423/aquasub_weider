@@ -77,49 +77,37 @@ The program opens <http://127.0.0.1:5000> in fullscreen automatically. Set
 launching. The page automatically selects the first detected
 `/dev/ttyUSB*` or `/dev/ttyACM*` device. Confirm the settings and click **Connect**.
 
-## Raspberry Pi Wi-Fi
+## Raspberry Pi desktop controls
 
-Admins can open **Device Settings > Wi-Fi** to scan networks, connect with a
-password, enable auto-connect, and view the connected Wi-Fi interface's IPv4
-address. Existing saved networks can be reconnected without entering their
-password. Open and WPA personal networks are supported; enterprise networks
-must first be configured through Raspberry Pi OS network settings.
+**Device Settings** shows the connected IPv4 address, preferring Wi-Fi and
+falling back to Ethernet. This is read-only and refreshes automatically.
+The app no longer scans, connects, or saves Wi-Fi networks; manage those
+through Raspberry Pi OS. Existing saved networks are left unchanged.
 
-This uses NetworkManager (`nmcli`), the default on Raspberry Pi OS Bookworm
-and newer. NetworkManager stores network profiles and credentials; the app
-does not store Wi-Fi passwords in SQLite or logs. Configure the Pi's Wi-Fi
-country through Raspberry Pi OS settings if the radio is blocked.
+The admin-only **Open top bar** button minimizes the local WeightFlow Device
+Settings browser window, revealing the Pi desktop panel and its network menu.
+The app and unfinished melts keep running. Click the browser's taskbar icon
+to return to the app. The button operates on the Pi, not on a remote client's
+desktop.
 
-Run the app as the Pi desktop user with NetworkManager permission. For a
-dedicated service account without those permissions, an administrator can
-create a restricted `weider-network` group and add only the app's OS user:
+Run the app as the Pi desktop user, with the normal desktop panel installed.
+On Wayland (labwc or Wayfire), install the window-control utility:
 
 ```bash
-sudo groupadd -f weider-network
-sudo usermod -aG weider-network <app-user>
+sudo apt install wlrctl
 ```
 
-Then create `/etc/polkit-1/rules.d/50-weider-wifi.rules`:
+On a legacy X11 desktop, use:
 
-```javascript
-polkit.addRule(function(action, subject) {
-    var allowed = [
-        "org.freedesktop.NetworkManager.network-control",
-        "org.freedesktop.NetworkManager.settings.modify.system",
-        "org.freedesktop.NetworkManager.enable-disable-wifi",
-        "org.freedesktop.NetworkManager.wifi.scan"
-    ];
-    if (subject.isInGroup("weider-network") && allowed.indexOf(action.id) >= 0) {
-        return polkit.Result.YES;
-    }
-});
+```bash
+sudo apt install xdotool
 ```
 
-Restart the app's service/session after changing group membership. Do not run
-the Flask app as root or grant it unrestricted sudo access. Changing Wi-Fi
-may disconnect a remote browser: use the Pi's local display to see the new IP,
-then reopen `http://<wifi-ip>:5000` from a device on the same network. Use this
-admin interface only on a trusted network; the current app uses HTTP.
+The app reads IP addresses with `iproute2` and accesses the desktop session
+through its existing `WAYLAND_DISPLAY`/`DISPLAY` environment. It does not
+need root, sudo privileges, or NetworkManager modification permissions.
+An optional NetworkManager polkit rule/group created for the removed Wi-Fi
+feature is no longer needed and may be removed by the Pi administrator.
 
 ## Linux serial-port setup
 
