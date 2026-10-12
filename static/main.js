@@ -6,6 +6,7 @@ mainHeader.appendChild($("complete-melt-button"));
 let successTimer = null;
 let pendingCaptureId = null;
 let selectingFurnace = false;
+let capturingWeight = false;
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 async function requestJson(url, options = {}) { const response = await fetch(url, options); const data = await response.json(); if (!response.ok) { const error = new Error(data.error || "Request failed"); error.code = data.code; throw error; } return data; }
 function numericWeight(value) {
@@ -103,6 +104,10 @@ async function selectFurnace(button, recoveredMelt) {
   }
 }
 async function captureWeight(button) {
+  if (capturingWeight) return;
+  capturingWeight = true;
+  $("furnace-back").disabled = true;
+  $("complete-melt-button").disabled = true;
   const message = $("capture-message"); message.hidden = true; button.disabled = true;
   try {
     if (!mainState.furnace) throw new Error("Select a furnace before selecting an image");
@@ -128,7 +133,12 @@ async function captureWeight(button) {
       message.className = "capture-message failure"; message.textContent = error.message; message.hidden = false;
     }
   }
-  finally { button.disabled = false; }
+  finally {
+    button.disabled = false;
+    capturingWeight = false;
+    $("furnace-back").disabled = false;
+    $("complete-melt-button").disabled = false;
+  }
 }
 function showCaptureSuccess(result) {
   clearInterval(successTimer);
@@ -183,6 +193,7 @@ function requestMeltCompletion() {
 async function completeActiveMelt() {
   if (!mainState.activeMelt || !mainState.activeMelt.captureIds.length) return;
   $("complete-melt-dialog").close();
+  $("furnace-back").disabled = true;
   const buttons = [$("complete-melt-button")];
   buttons.forEach(button => { button.disabled = true; button.textContent = "Completing..."; });
   try {
@@ -207,6 +218,7 @@ async function completeActiveMelt() {
     message.textContent = error.message;
     message.hidden = false;
   } finally {
+    $("furnace-back").disabled = false;
     buttons.forEach(button => { button.disabled = false; });
     updateCompleteButtons();
   }
@@ -214,17 +226,14 @@ async function completeActiveMelt() {
 $("complete-melt-button").addEventListener("click", requestMeltCompletion);
 $("confirm-complete-melt").addEventListener("click", completeActiveMelt);
 $("furnace-back").addEventListener("click", () => {
-  if (mainState.activeMelt?.captureIds.length) {
-    const message = $("capture-message");
-    message.className = "capture-message failure";
-    message.textContent = "Mark the current melt as completed before changing furnace";
-    message.hidden = false;
-    return;
-  }
+  if (capturingWeight || $("furnace-back").disabled) return;
   mainState.furnace = null;
+  mainState.activeMelt = null;
+  $("capture-message").hidden = true;
   $("product-selector").hidden = true;
   $("main-product-context").hidden = true;
   $("furnace-selector").hidden = false;
+  updateCompleteButtons();
 });
 async function initializeMain() {
   try {

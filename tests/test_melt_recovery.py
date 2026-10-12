@@ -128,6 +128,24 @@ class MeltRecoveryTests(unittest.TestCase):
         self.assertEqual([row["captured_by_username"] for row in rows], ["admin", "operator"])
         self.assertTrue(all(row["melt_completed_at"] for row in rows))
 
+    def test_switching_furnaces_keeps_each_melt_open_until_explicit_completion(self):
+        first_a = self.capture(5)
+        first_b = self.capture(2, furnace=1)
+        for furnace, first in ((0, first_a), (1, first_b)):
+            recovered = self.client.get(f"/api/melts/unfinished?furnace_id={self.furnaces[furnace]}").json["melt"]
+            self.assertEqual(recovered["melt_number"], first["melt_number"])
+            self.assertEqual(recovered["melt_count"], 1)
+        continued_a = self.capture(3, melt_number=first_a["melt_number"], melt_serial=first_a["melt_serial"])
+        continued_b = self.capture(4, furnace=1, melt_number=first_b["melt_number"], melt_serial=first_b["melt_serial"])
+        self.assertEqual((continued_a["melt_number"], continued_a["melt_count"], continued_a["melt_total_weight"]), ("A1", 2, 8))
+        self.assertEqual((continued_b["melt_number"], continued_b["melt_count"], continued_b["melt_total_weight"]), ("B1", 2, 6))
+        self.assertEqual(self.complete(continued_b).status_code, 200)
+        self.assertEqual(self.capture(1, furnace=1)["melt_number"], "B2")
+        self.assertEqual(self.capture(1)["melt_number"], "A1")
+        open_a = self.client.get(f"/api/melts/unfinished?furnace_id={self.furnaces[0]}").json["melt"]
+        self.assertEqual(self.complete(open_a).status_code, 200)
+        self.assertEqual(self.capture(2)["melt_number"], "A2")
+
     def test_stale_completion_cannot_partially_complete_melt(self):
         first = self.capture(5)
         self.capture(2)
