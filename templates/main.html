@@ -22,6 +22,7 @@
         <img src="{{ url_for('static', filename='icons/maximize.svg') }}" data-maximize-src="{{ url_for('static', filename='icons/maximize.svg') }}" data-restore-src="{{ url_for('static', filename='icons/panel-top-open.svg') }}" alt="" aria-hidden="true">
       </button>
       <button class="complete-melt-button" id="complete-melt-button" type="button" hidden>Mark as completed (0)</button>
+      <div class="maximized-live-controls" id="maximized-live-controls" hidden></div>
     </div>
     <div class="capture-message" id="capture-message" hidden></div>
 
@@ -72,7 +73,7 @@
     </form>
   </dialog>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
-  <script src="{{ url_for('static', filename='main.js', v='14') }}"></script>
+  <script src="{{ url_for('static', filename='main.js', v='15') }}"></script>
   <script src="{{ url_for('static', filename='fullscreen.js', v='5') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>

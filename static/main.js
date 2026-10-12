@@ -14,8 +14,17 @@ $("main-maximize-button").addEventListener("click", () => {
   button.setAttribute("aria-pressed", String(maximized));
   const icon = button.querySelector("img");
   icon.src = maximized ? icon.dataset.restoreSrc : icon.dataset.maximizeSrc;
-  if (maximized) button.before($("complete-melt-button"));
-  else mainHeader.appendChild($("complete-melt-button"));
+  const controls = $("maximized-live-controls");
+  const weight = document.querySelector(".main-inline-weight");
+  controls.hidden = !maximized;
+  if (maximized) {
+    controls.before($("complete-melt-button"));
+    controls.append(weight, $("main-status"), button);
+  } else {
+    $("main-weight-message").before(weight, $("main-status"));
+    $("main-weight-message").after(button);
+    mainHeader.appendChild($("complete-melt-button"));
+  }
 });
 let successTimer = null;
 let pendingCaptureId = null;
