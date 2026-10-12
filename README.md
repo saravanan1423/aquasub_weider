@@ -77,6 +77,50 @@ The program opens <http://127.0.0.1:5000> in fullscreen automatically. Set
 launching. The page automatically selects the first detected
 `/dev/ttyUSB*` or `/dev/ttyACM*` device. Confirm the settings and click **Connect**.
 
+## Raspberry Pi Wi-Fi
+
+Admins can open **Device Settings > Wi-Fi** to scan networks, connect with a
+password, enable auto-connect, and view the connected Wi-Fi interface's IPv4
+address. Existing saved networks can be reconnected without entering their
+password. Open and WPA personal networks are supported; enterprise networks
+must first be configured through Raspberry Pi OS network settings.
+
+This uses NetworkManager (`nmcli`), the default on Raspberry Pi OS Bookworm
+and newer. NetworkManager stores network profiles and credentials; the app
+does not store Wi-Fi passwords in SQLite or logs. Configure the Pi's Wi-Fi
+country through Raspberry Pi OS settings if the radio is blocked.
+
+Run the app as the Pi desktop user with NetworkManager permission. For a
+dedicated service account without those permissions, an administrator can
+create a restricted `weider-network` group and add only the app's OS user:
+
+```bash
+sudo groupadd -f weider-network
+sudo usermod -aG weider-network <app-user>
+```
+
+Then create `/etc/polkit-1/rules.d/50-weider-wifi.rules`:
+
+```javascript
+polkit.addRule(function(action, subject) {
+    var allowed = [
+        "org.freedesktop.NetworkManager.network-control",
+        "org.freedesktop.NetworkManager.settings.modify.system",
+        "org.freedesktop.NetworkManager.enable-disable-wifi",
+        "org.freedesktop.NetworkManager.wifi.scan"
+    ];
+    if (subject.isInGroup("weider-network") && allowed.indexOf(action.id) >= 0) {
+        return polkit.Result.YES;
+    }
+});
+```
+
+Restart the app's service/session after changing group membership. Do not run
+the Flask app as root or grant it unrestricted sudo access. Changing Wi-Fi
+may disconnect a remote browser: use the Pi's local display to see the new IP,
+then reopen `http://<wifi-ip>:5000` from a device on the same network. Use this
+admin interface only on a trusted network; the current app uses HTTP.
+
 ## Linux serial-port setup
 
 List connected serial devices:

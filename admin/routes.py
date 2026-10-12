@@ -67,6 +67,45 @@ def device_settings_page():
     return render_template("device_settings.html")
 
 
+@admin_bp.get("/api/wifi/status")
+def get_wifi_status():
+    from core.wifi import WifiError, wifi_status
+    try:
+        return jsonify({"ok": True, **wifi_status()})
+    except WifiError as error:
+        return jsonify({"ok": False, "error": str(error)}), error.status
+    except ValueError as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+
+
+@admin_bp.get("/api/wifi/networks")
+def get_wifi_networks():
+    from core.wifi import WifiError, wifi_networks
+    try:
+        return jsonify({"ok": True, **wifi_networks()})
+    except WifiError as error:
+        return jsonify({"ok": False, "error": str(error)}), error.status
+
+
+@admin_bp.route("/api/wifi/connect", methods=["POST"])
+@admin_bp.route("/api/wifi/autoconnect", methods=["PUT"])
+def change_wifi():
+    from core.wifi import WifiError, connect_wifi, set_autoconnect
+    origin=request.headers.get("Origin")
+    if origin and origin != request.host_url.rstrip("/"):
+        return jsonify({"ok": False, "error": "Wi-Fi changes must be made from this app"}), 403
+    if not request.is_json:
+        return jsonify({"ok": False, "error": "Enter valid Wi-Fi settings"}), 400
+    try:
+        payload=request.get_json(silent=True)
+        result=connect_wifi(payload) if request.path.endswith("/connect") else set_autoconnect(payload)
+    except ValueError as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    except WifiError as error:
+        return jsonify({"ok": False, "error": str(error)}), error.status
+    return jsonify({"ok": True, **result})
+
+
 @admin_bp.get("/api/usb-drives")
 def usb_drives():
     from core.usb_backup import mounted_usb_drives
