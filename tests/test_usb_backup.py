@@ -48,7 +48,10 @@ class UsbBackupTests(unittest.TestCase):
         self.assertEqual(response.json["total_melts"], 1)
         folder = Path(response.json["folder"])
         self.assertEqual(folder.parent, self.drive_root / "Weider Reports")
-        csv_file, pdf_file = [folder / name for name in response.json["files"]]
+        self.assertEqual(set(response.json["files"]), {"Melt_Summary.csv", "Melt_Summary.pdf", "Individual_Captures.csv", "Individual_Captures.pdf"})
+        csv_file, pdf_file = folder / "Melt_Summary.csv", folder / "Melt_Summary.pdf"
+        self.assertIn("Brass", (folder / "Individual_Captures.csv").read_text(encoding="utf-8-sig"))
+        self.assertTrue((folder / "Individual_Captures.pdf").read_bytes().startswith(b"%PDF"))
         self.assertIn("A1", csv_file.read_text(encoding="utf-8-sig"))
         self.assertIn("2.000", csv_file.read_text(encoding="utf-8-sig"))
         self.assertTrue(pdf_file.read_bytes().startswith(b"%PDF"))
@@ -91,7 +94,10 @@ class UsbBackupTests(unittest.TestCase):
         self.assertEqual(response.json["total_melts"], 0)
         self.assertEqual(response.json["total_weight"], 0)
         folder = Path(response.json["folder"])
-        csv_file, pdf_file = [folder / name for name in response.json["files"]]
+        csv_file, pdf_file = folder / "Melt_Summary.csv", folder / "Melt_Summary.pdf"
+        individual_rows = list(csv.reader(io.StringIO((folder / "Individual_Captures.csv").read_text(encoding="utf-8-sig"))))
+        self.assertEqual(individual_rows[5], [])
+        self.assertTrue((folder / "Individual_Captures.pdf").read_bytes().startswith(b"%PDF"))
         rows = list(csv.reader(io.StringIO(csv_file.read_text(encoding="utf-8-sig"))))
         self.assertEqual(rows[4][0], "S.No")
         self.assertEqual(rows[5], [])

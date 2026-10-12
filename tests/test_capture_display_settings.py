@@ -75,6 +75,8 @@ class CaptureDisplaySettingsTests(unittest.TestCase):
         page = self.operator_client.get("/").data
         self.assertNotIn(b'id="complete-melt-success"', page)
         self.assertIn(b'id="complete-melt-button"', page)
+        self.assertIn(b'id="main-maximize-button"', page)
+        self.assertIn(b'aria-label="Maximize Main Screen"', page)
 
     def test_capture_uses_saved_duration_and_cancel_window(self):
         with app.app_context():

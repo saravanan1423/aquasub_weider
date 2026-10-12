@@ -125,6 +125,8 @@ screen shows pending, saving, and last-saved status.
 Admins and operators with Logs access can also create a manual USB backup
 from **Logs > Generate report > USB backup (CSV + PDF)**. Device Settings,
 user management, and capture editing remain admin-only.
+Manual USB backups always include both CSV reports and their PDFs using the
+same selected filters, regardless of the report type selected for sharing.
 
 Use the Pi's correct local clock and timezone. The first startup enables
 monitoring from that point; it does not export historical completed shifts.

@@ -105,7 +105,10 @@ def report_usb_backup():
         return jsonify({"ok": False, "error": "Select a USB drive"}), 400
     try:
         report = build_capture_report(payload, session["username"])
-        result = backup_report(report, drive_id)
+        other_type = "individual" if report["report_type"] == "melt" else "melt"
+        reports = {report["report_type"]: report,
+                   other_type: build_capture_report({**payload, "report_type": other_type}, session["username"])}
+        result = backup_report(reports, drive_id)
     except ValueError as error:
         return jsonify({"ok": False, "error": str(error)}), 400
     except OSError as error:

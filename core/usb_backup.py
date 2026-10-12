@@ -104,15 +104,18 @@ def write_usb_files(drive, name, files):
     return {"drive": drive["label"], "folder": str(final), "files": list(files)}
 
 
-def backup_report(report, drive_id):
+def backup_report(reports, drive_id):
     drive=resolve_drive(drive_id)
     timestamp = datetime.now().astimezone().strftime("%Y%m%d_%H%M%S")
-    prefix = "Individual_Captures_Report" if report.get("report_type") == "individual" else "Melt_Report"
-    name = f"{prefix}_{timestamp}_{uuid.uuid4().hex[:6]}"
-    files={f"{name}.csv":report_csv(report), f"{name}.pdf":report_pdf(report)}
+    name = f"Reports_Backup_{timestamp}_{uuid.uuid4().hex[:6]}"
+    files={}
+    for report_type, prefix in (("melt", "Melt_Summary"), ("individual", "Individual_Captures")):
+        files[f"{prefix}.csv"]=report_csv(reports[report_type])
+        files[f"{prefix}.pdf"]=report_pdf(reports[report_type])
+    report=reports["melt"]
     return {**write_usb_files(drive, name, files),
             "total_melts": report["total_melts"], "total_products": report["total_products"],
-            "report_type": report.get("report_type", "melt"), "total_weight": report["total_net_weight"]}
+            "report_type": "both", "total_weight": report["total_net_weight"]}
 
 
 def backup_shift_reports(reports, drive_id, job_key):

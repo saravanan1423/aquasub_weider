@@ -201,8 +201,8 @@ document.getElementById("report-form").addEventListener("submit", async event =>
     catch { throw new Error(`Report could not finish (server response ${response.status}). Contact admin.`); }
     if (!response.ok) throw new Error(data.error || "Report generation failed");
     if (usb) {
-      const summary=data.total_melts === 0 ? "No data: empty CSV and PDF saved"
-        : filters.report_type === "individual" ? `${data.total_products} captures saved as CSV and PDF` : `${data.total_melts} melts saved as CSV and PDF`;
+      const summary=data.total_melts === 0 ? "No data: 2 empty CSVs and 2 PDFs saved"
+        : `${data.total_melts} melts, ${data.total_products} captures saved as 2 CSVs and 2 PDFs`;
       backupStatus(`${summary} to ${data.drive} / Weider Reports`);
     } else {
       renderReport(data);

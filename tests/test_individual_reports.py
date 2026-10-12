@@ -94,16 +94,33 @@ class IndividualReportTests(unittest.TestCase):
         rows = list(csv.reader(io.StringIO(download.data.decode("utf-8-sig"))))
         self.assertEqual([row[3] for row in rows[5:8]], ["Copper", "Aluminium", "Brass"])
 
-    def test_usb_backup_uses_selected_type(self):
+    def test_usb_backup_includes_both_types_with_individual_selected(self):
         with patch("core.usb_backup.mounted_usb_drives", return_value=[self.fixture.drive]), patch.object(Path, "is_mount", return_value=True):
             response = self.fixture.client.post("/api/report-usb-backup", json=self.params)
         self.assertEqual(response.status_code, 200, response.json)
         self.assertEqual(response.json["total_products"], 3)
         folder = Path(response.json["folder"])
-        self.assertTrue(folder.name.startswith("Individual_Captures_Report_"))
-        csv_file, pdf_file = [folder / name for name in response.json["files"]]
+        self.assertTrue(folder.name.startswith("Reports_Backup_"))
+        self.assertEqual(len(response.json["files"]), 4)
+        csv_file, pdf_file = folder / "Individual_Captures.csv", folder / "Individual_Captures.pdf"
         self.assertIn("INDIVIDUAL CAPTURES REPORT", csv_file.read_text(encoding="utf-8-sig"))
         self.assertTrue(pdf_file.read_bytes().startswith(b"%PDF"))
+        self.assertIn("MELT", (folder / "Melt_Summary.csv").read_text(encoding="utf-8-sig"))
+        self.assertTrue((folder / "Melt_Summary.pdf").read_bytes().startswith(b"%PDF"))
+
+    def test_both_usb_reports_use_same_furnace_and_shift_filters(self):
+        payload = {**self.params, "furnace": "1", "shift": str(self.shift_id)}
+        with patch("core.usb_backup.mounted_usb_drives", return_value=[self.fixture.drive]), patch.object(Path, "is_mount", return_value=True):
+            response = self.fixture.client.post("/api/report-usb-backup", json=payload)
+        self.assertEqual(response.status_code, 200, response.json)
+        folder = Path(response.json["folder"])
+        melt_rows = list(csv.reader(io.StringIO((folder / "Melt_Summary.csv").read_text(encoding="utf-8-sig"))))
+        capture_rows = list(csv.reader(io.StringIO((folder / "Individual_Captures.csv").read_text(encoding="utf-8-sig"))))
+        self.assertEqual(len(melt_rows[5:-2]), 1)
+        self.assertEqual(melt_rows[5][2], "A1")
+        self.assertEqual(melt_rows[5][4], "7.000")
+        self.assertEqual([row[3] for row in capture_rows[5:-2]], ["Aluminium", "Brass"])
+        self.assertEqual(response.json["total_products"], 2)
 
     def test_invalid_report_type_is_rejected(self):
         payload = {**self.params, "report_type": "unknown"}

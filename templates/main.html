@@ -18,6 +18,9 @@
       <div class="main-inline-weight"><span>LIVE WEIGHT</span><strong id="main-live-weight">------</strong><small class="weight-unit">kg</small></div>
       <div class="status connecting" id="main-status"><span></span><strong>Connecting…</strong></div>
       <small id="main-weight-message" hidden></small>
+      <button class="icon-button main-maximize-button" id="main-maximize-button" type="button" title="Maximize Main Screen" aria-label="Maximize Main Screen" aria-pressed="false" aria-controls="main-navigation">
+        <img src="{{ url_for('static', filename='icons/maximize.svg') }}" data-maximize-src="{{ url_for('static', filename='icons/maximize.svg') }}" data-restore-src="{{ url_for('static', filename='icons/panel-top-open.svg') }}" alt="" aria-hidden="true">
+      </button>
       <button class="complete-melt-button" id="complete-melt-button" type="button" hidden>Mark as completed (0)</button>
     </div>
     <div class="capture-message" id="capture-message" hidden></div>
@@ -69,7 +72,7 @@
     </form>
   </dialog>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
-  <script src="{{ url_for('static', filename='main.js', v='13') }}"></script>
+  <script src="{{ url_for('static', filename='main.js', v='14') }}"></script>
   <script src="{{ url_for('static', filename='fullscreen.js', v='5') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>
