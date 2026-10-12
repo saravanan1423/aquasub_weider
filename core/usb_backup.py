@@ -65,7 +65,8 @@ def backup_report(report, drive_id):
     parent = root / "Weider Reports"
     parent.mkdir(exist_ok=True)
     timestamp = datetime.now().astimezone().strftime("%Y%m%d_%H%M%S")
-    name = f"Melt_Report_{timestamp}_{uuid.uuid4().hex[:6]}"
+    prefix = "Individual_Captures_Report" if report.get("report_type") == "individual" else "Melt_Report"
+    name = f"{prefix}_{timestamp}_{uuid.uuid4().hex[:6]}"
     staged, final = parent / f".{name}.partial", parent / name
     staged.mkdir()
     filenames = (f"{name}.csv", f"{name}.pdf")
@@ -84,4 +85,5 @@ def backup_report(report, drive_id):
                 (staged / filename).unlink(missing_ok=True)
             staged.rmdir()
     return {"drive": drive["label"], "folder": str(final), "files": list(filenames),
-            "total_melts": report["total_melts"], "total_weight": report["total_net_weight"]}
+            "total_melts": report["total_melts"], "total_products": report["total_products"],
+            "report_type": report.get("report_type", "melt"), "total_weight": report["total_net_weight"]}

@@ -108,7 +108,7 @@ def local_capture_datetime(value):
 
 
 def numeric_weight(value):
-    match=re.search(r"[-+]?\d+(?:\.\d+)?",str(value).replace(",",""))
+    match=re.search(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)",str(value).replace(",",""))
     return float(match.group()) if match else 0.0
 
 
@@ -122,6 +122,9 @@ def shift_name_for_capture(captured_at, shifts):
 
 
 def build_capture_report(params, username):
+    report_type=params.get("report_type", "melt")
+    if report_type not in ("melt", "individual"):
+        raise ValueError("Select a valid report type")
     try:
         from_date=date.fromisoformat(params.get("from_date", ""))
         to_date=date.fromisoformat(params.get("to_date", ""))
@@ -133,7 +136,7 @@ def build_capture_report(params, username):
     with database_connection() as connection:
         shifts=connection.execute("SELECT id,name,start_time,end_time FROM shifts ORDER BY start_time,name").fetchall()
         furnaces=connection.execute("SELECT furnace_id,furnace_name FROM (SELECT DISTINCT furnace_id,furnace_name FROM weight_captures WHERE furnace_id IS NOT NULL AND furnace_name IS NOT NULL UNION SELECT CAST(id AS TEXT),image_name FROM product_images WHERE image_type='furnace') ORDER BY furnace_name").fetchall()
-        captures=connection.execute("SELECT id,furnace_id,furnace_name,melt_number,image_name,weight,captured_at,captured_by_username FROM weight_captures ORDER BY captured_at").fetchall()
+        captures=connection.execute("SELECT id,furnace_id,furnace_name,melt_number,image_name,weight,captured_at,captured_by_username FROM weight_captures ORDER BY captured_at,id").fetchall()
     shift=None
     if shift_value != "all":
         try: shift=next((row for row in shifts if row["id"]==int(shift_value)),None)
@@ -179,6 +182,9 @@ def build_capture_report(params, username):
     range_from=custom_start.isoformat(timespec="minutes") if custom_mode else from_date.isoformat()
     range_to=custom_end.isoformat(timespec="minutes") if custom_mode else to_date.isoformat()
     report={"ok":True,"generated_by":username,"generated_on":datetime.now().astimezone().isoformat(timespec="seconds"),"range_from":range_from,"range_to":range_to,"shift":shift_name,"furnace":furnace_name,"items":melt_items,"summary":list(summary.values()),"total_melts":len(melt_items),"total_products":len(filtered),"total_net_weight":sum(item["numeric_weight"] for item in filtered),"options":{"shifts":[dict(row) for row in shifts],"furnaces":[dict(row) for row in furnaces]}}
+    report["report_type"]=report_type
+    if report_type == "individual":
+        report["items"]=sorted(filtered, key=lambda item:(item["captured_at"], item["id"]), reverse=True)
     return report
 
 
@@ -222,7 +228,8 @@ def download_shared_report(token):
     if saved is None or datetime.fromisoformat(saved["expires_at"])<=datetime.now().astimezone(): return "This report download link has expired.",410
     from core.report_export import report_csv
     report=json.loads(saved["report_json"]); data=io.BytesIO(report_csv(report))
-    return send_file(data,mimetype="text/csv",as_attachment=True,download_name=f'capture-report-{datetime.now().date().isoformat()}.csv')
+    prefix="individual-captures-report" if report.get("report_type") == "individual" else "capture-report"
+    return send_file(data,mimetype="text/csv",as_attachment=True,download_name=f'{prefix}-{datetime.now().date().isoformat()}.csv')
 
 @logs_bp.route("/api/weight-captures/<int:capture_id>",methods=["PUT","DELETE"])
 def capture(capture_id):
