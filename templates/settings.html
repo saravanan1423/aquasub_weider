@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>System Settings - WeightFlow</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='3') }}">
+</head>
+<body>
+  {% include 'navigation.html' %}
+  <main class="shell with-sidebar settings-page">
+    <header class="settings-heading"><h1>System Settings</h1>{% if can_access('main') %}<a class="settings-back" href="/"><i class="ui-icon" style="--icon:url('/static/icons/arrow-left.svg')" aria-hidden="true"></i>Back</a>{% endif %}</header>
+    <div class="settings-grid">
+      {% for permission, href, label, icon in [('communication', '/communication', 'Communication Settings', 'radio'), ('shifts', '/shifts', 'Shift Settings', 'clock-3'), ('melts', '/melt-settings', 'Melt Number Settings', 'hash'), ('admin', '/device-settings', 'Device Settings', 'monitor'), ('products', '/images', 'Product Master', 'package'), ('admin', '/users', 'Users', 'users'), ('logs', '/logs', 'Logs', 'logs')] %}
+      {% if is_admin or can_access(permission) %}
+      <a class="settings-tile" href="{{ href }}"><span class="settings-tile-icon"><i class="ui-icon" style="--icon:url('/static/icons/{{ icon }}.svg')" aria-hidden="true"></i></span><strong>{{ label }}</strong><i class="ui-icon tile-arrow" style="--icon:url('/static/icons/chevron-right.svg')" aria-hidden="true"></i></a>
+      {% endif %}
+      {% endfor %}
+      {% if is_admin %}<button class="settings-tile" type="button" data-rustdesk-launch title="Open RustDesk on this device"><span class="settings-tile-icon"><i class="ui-icon" style="--icon:url('/static/icons/life-buoy.svg')" aria-hidden="true"></i></span><strong>Remote Support</strong><i class="ui-icon tile-arrow" style="--icon:url('/static/icons/chevron-right.svg')" aria-hidden="true"></i></button>{% endif %}
+    </div>
+    <div class="form-message" id="rustdesk-status" role="status" aria-live="polite" hidden></div>
+  </main>
+  <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
+  <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
+</body>
+</html>

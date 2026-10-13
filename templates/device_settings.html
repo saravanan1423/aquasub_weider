@@ -2,24 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Device Settings - WeightFlow</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <title>Device Settings - WeightFlow</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='1') }}">
 </head>
 <body>
-  <aside class="sidebar">
-    <a class="brand" href="/"><span>W</span><strong>WeightFlow</strong></a>
-    <nav>
-      <a class="nav-link" href="/communication"><span>C</span>Communication Settings</a>
-      <a class="nav-link" href="/shifts"><span>S</span>Shift Settings</a>
-      <a class="nav-link" href="/melt-settings"><span>M</span>Melt Number Settings</a>
-      <a class="nav-link" href="/images"><span>P</span>Product Master</a>
-      <a class="nav-link" href="/users"><span>U</span>Users</a>
-      <a class="nav-link" href="/"><span>H</span>Main Screen</a>
-      <a class="nav-link" href="/logs"><span>L</span>Logs</a>
-      <form class="logout-form" action="/logout" method="post"><button type="submit">Logout</button></form>
-    </nav>
-  </aside>
+  {% include 'navigation.html' %}
   <main class="shell with-sidebar device-settings-page">
-    <header class="device-settings-heading"><h1>Device Settings</h1><button class="ghost" id="show-top-bar" type="button" title="Open Raspberry Pi desktop top bar"><span class="top-bar-icon" aria-hidden="true"></span>Open top bar</button></header>
+    <header class="device-settings-heading"><h1>Device Settings</h1><div class="header-actions"><a class="settings-back" href="/settings"><i class="ui-icon" style="--icon:url('/static/icons/arrow-left.svg')" aria-hidden="true"></i>Back</a><button class="ghost" id="show-top-bar" type="button" title="Open Raspberry Pi desktop top bar"><span class="top-bar-icon" aria-hidden="true"></span>Open top bar</button></div></header>
     <section class="panel device-settings-panel" id="device-panel">
       <form class="device-settings-form" id="device-settings-form">
         <div class="field"><label for="pi-serial">Raspberry Pi serial number</label><input id="pi-serial" readonly value="Loading..."></div>
@@ -34,7 +22,7 @@
   </main>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
   <script src="{{ url_for('static', filename='device_settings.js', v='8') }}"></script>
-  <script src="{{ url_for('static', filename='fullscreen.js', v='5') }}" data-admin="true"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="true"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>
 </html>

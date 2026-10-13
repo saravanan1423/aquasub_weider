@@ -11,6 +11,9 @@ main_bp = Blueprint("main_screen", __name__)
 @main_bp.get("/")
 def index(): return render_template("main.html")
 
+@main_bp.get("/settings")
+def settings_page(): return render_template("settings.html")
+
 @main_bp.get("/melt-settings")
 def melt_settings_page(): return render_template("melt_number_settings.html")
 
@@ -197,12 +200,15 @@ def unfinished_melt(connection, furnace_id=None):
     if row is None:
         return None
     captures = connection.execute(
-        "SELECT id,product_image_id,weight FROM weight_captures WHERE furnace_id=? AND melt_number=? ORDER BY id",
+        "SELECT c.id,c.product_image_id,c.weight,c.captured_at,COALESCE(p.image_name,c.image_name) AS product_name "
+        "FROM weight_captures c LEFT JOIN product_images p ON p.id=c.product_image_id "
+        "WHERE c.furnace_id=? AND c.melt_number=? ORDER BY c.id",
         (row["furnace_id"], row["melt_number"]),
     ).fetchall()
     return {"furnace_id": row["furnace_id"], "furnace_name": row["furnace_name"],
             "furnace_image_url": row["furnace_image_url"], "melt_number": row["melt_number"],
             "melt_serial": row["melt_serial"], "capture_ids": [item["id"] for item in captures],
+            "captures": [dict(item) for item in captures],
             "melt_count": len(captures), "melt_total_weight": sum(numeric_weight(item["weight"]) for item in captures),
             "last_product_id": captures[-1]["product_image_id"]}
 
@@ -275,9 +281,10 @@ def create_weight_capture():
         captured_at = datetime.now().astimezone().isoformat(timespec="milliseconds")
         cursor = connection.execute("INSERT INTO weight_captures (product_image_id,image_name,image_url,weight,furnace_id,furnace_name,furnace_image_url,melt_number,melt_serial,captured_at,captured_by_user_id,captured_by_username) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (image["id"],image["image_name"],image["image_url"],weight,str(furnace_id),furnace["name"],furnace["image_url"],melt_number,melt_serial,captured_at,session["user_id"],session["username"]))
         totals = melt_totals(connection, furnace_id, melt_number)
-        capture_ids = unfinished_melt(connection, furnace_id)["capture_ids"]
+        unfinished = unfinished_melt(connection, furnace_id)
+        capture_ids = unfinished["capture_ids"]
         display = connection.execute("SELECT success_display_seconds FROM capture_display_settings WHERE id=1").fetchone()
-    return jsonify({"ok": True,"id":cursor.lastrowid,"image_name":image["image_name"],"image_url":image["image_url"],"weight":weight,"furnace_id":furnace_id,"furnace_name":furnace["name"],"furnace_image_url":furnace["image_url"],"melt_number":melt_number,"melt_serial":melt_serial,"capture_ids":capture_ids,**totals,"captured_at":captured_at,"success_display_seconds":display["success_display_seconds"] if display else 10}), 201
+    return jsonify({"ok": True,"id":cursor.lastrowid,"image_name":image["image_name"],"image_url":image["image_url"],"weight":weight,"furnace_id":furnace_id,"furnace_name":furnace["name"],"furnace_image_url":furnace["image_url"],"melt_number":melt_number,"melt_serial":melt_serial,"capture_ids":capture_ids,"captures":unfinished["captures"],**totals,"captured_at":captured_at,"success_display_seconds":display["success_display_seconds"] if display else 10}), 201
 
 @main_bp.post("/api/melts/complete")
 def complete_melt():

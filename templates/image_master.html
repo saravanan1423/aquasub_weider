@@ -2,15 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Product Master</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <title>Product Master</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='1') }}">
 </head>
 <body>
-  <aside class="sidebar">
-    <a class="brand" href="/"><span>W</span><strong>WeightFlow</strong></a>
-    <nav>{% if can_access('main') %}<a class="nav-link" href="/"><span>⌂</span>Main Screen</a>{% endif %}{% if can_access('communication') %}<a class="nav-link" href="/communication"><span>⌁</span>Communication Settings</a>{% endif %}{% if can_access('shifts') %}<a class="nav-link" href="/shifts"><span>S</span>Shift Settings</a>{% endif %}{% if can_access('melts') %}<a class="nav-link" href="/melt-settings"><span>M</span>Melt Number Settings</a>{% endif %}<a class="nav-link active" href="/images"><span>▧</span>Product Master</a>{% if can_access('logs') %}<a class="nav-link" href="/logs"><span>≡</span>Logs</a>{% endif %}{% if is_admin %}<a class="nav-link" href="/users"><span>♙</span>Users</a>{% endif %}<form class="logout-form" action="/logout" method="post"><button type="submit">↪ Logout</button></form></nav>
-  </aside>
+  {% include 'navigation.html' %}
   <main class="shell with-sidebar product-master-page">
-    <header><h1>Product Master</h1></header>
+    <header><h1>Product Master</h1><a class="settings-back" href="/settings"><i class="ui-icon" style="--icon:url('/static/icons/arrow-left.svg')" aria-hidden="true"></i>Back</a></header>
     <section class="image-layout">
       <form class="panel upload-form" id="upload-form">
         <h2 id="form-title">New image</h2>
@@ -40,7 +37,7 @@
   </main>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
   <script src="{{ url_for('static', filename='image_master.js', v='5') }}"></script>
-  <script src="{{ url_for('static', filename='fullscreen.js', v='5') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>
 </html>

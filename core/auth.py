@@ -3,7 +3,8 @@ from flask import jsonify, redirect, render_template, request, session, url_for
 
 from core.database import database_connection
 
-SCREENS = {"main", "communication", "shifts", "melts", "products", "logs"}
+SCREENS = {"main", "settings", "communication", "shifts", "melts", "products", "logs"}
+SETTINGS_SCREENS = {"communication", "shifts", "melts", "products"}
 
 
 def current_user_access():
@@ -20,6 +21,7 @@ def current_user_access():
 def required_permissions():
     path, method = request.path, request.method
     if path == "/": return {"main"}
+    if path == "/settings": return SETTINGS_SCREENS | {"settings"}
     if path == "/communication": return {"communication"}
     if path == "/shifts": return {"shifts"}
     if path == "/melt-settings": return {"melts"}
@@ -69,5 +71,6 @@ def register_auth(app):
         return {
             "current_username": user["username"] if user else "",
             "is_admin": bool(user and user["role"] == "admin"),
+            "can_access_settings": bool(user and (user["role"] == "admin" or "settings" in permissions or SETTINGS_SCREENS.intersection(permissions))),
             "can_access": lambda screen: bool(user and (user["role"] == "admin" or screen in permissions)),
         }

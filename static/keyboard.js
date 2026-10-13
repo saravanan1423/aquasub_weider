@@ -102,6 +102,7 @@
   }
   function draw() {
     const rows = target?.type === "number" ? numberRows : specialMode ? specialRows : textRows;
+    panel.classList.toggle("numeric-keyboard", target?.type === "number");
     panel.replaceChildren();
     const previewBar=document.createElement("div"); previewBar.className="keyboard-preview";
     const previewLabel=document.createElement("span"); previewLabel.textContent="INPUT";

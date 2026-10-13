@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Login · WeightFlow</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <title>Login · WeightFlow</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='3') }}">
 </head>
 <body class="login-page">
   <main class="login-card">
@@ -14,6 +15,6 @@
       <div class="field"><label for="password">Password</label><div class="login-password-control"><input id="password" name="password" type="password" autocomplete="current-password" required><button class="password-visibility-toggle" id="toggle-password" type="button" title="Show password" aria-label="Show password" aria-controls="password" aria-pressed="false"><span class="password-visibility-icon" aria-hidden="true"></span></button></div></div>
       <button class="primary" type="submit">Sign in</button>
     </form>
-  </main><script src="{{ url_for('static', filename='fullscreen.js', v='5') }}" data-admin="false"></script><script src="{{ url_for('static', filename='login.js', v='2') }}"></script><script src="{{ url_for('static', filename='keyboard.js', v='2') }}"></script>
+  </main><script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="false"></script><script src="{{ url_for('static', filename='login.js', v='2') }}"></script><script src="{{ url_for('static', filename='keyboard.js', v='2') }}"></script>
 </body>
 </html>

@@ -2,13 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Main Screen</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <title>Main Screen</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='3') }}">
 </head>
 <body class="main-page">
-  <aside class="sidebar">
-    <a class="brand" href="/"><span>W</span><strong>WeightFlow</strong></a>
-    <nav>{% if can_access('main') %}<a class="nav-link active" href="/"><span>⌂</span>Main Screen</a>{% endif %}{% if can_access('communication') %}<a class="nav-link" href="/communication"><span>⌁</span>Communication Settings</a>{% endif %}{% if can_access('shifts') %}<a class="nav-link" href="/shifts"><span>S</span>Shift Settings</a>{% endif %}{% if can_access('melts') %}<a class="nav-link" href="/melt-settings"><span>M</span>Melt Number Settings</a>{% endif %}{% if can_access('products') %}<a class="nav-link" href="/images"><span>▧</span>Product Master</a>{% endif %}{% if can_access('logs') %}<a class="nav-link" href="/logs"><span>≡</span>Logs</a>{% endif %}{% if is_admin %}<a class="nav-link" href="/users"><span>♙</span>Users</a>{% endif %}<form class="logout-form" action="/logout" method="post"><button type="submit">↪ Logout</button></form></nav>
-  </aside>
+  {% include 'navigation.html' %}
   <main class="shell with-sidebar main-screen">
     <div class="main-live-bar">
       <div class="main-product-context" id="main-product-context" hidden>
@@ -17,9 +14,13 @@
       </div>
       <div class="main-inline-weight"><span>LIVE WEIGHT</span><strong id="main-live-weight">------</strong><small class="weight-unit">kg</small></div>
       <div class="status connecting" id="main-status"><span></span><strong>Connecting…</strong></div>
+      <time class="main-date-time" id="main-date-time" datetime=""><img src="{{ url_for('static', filename='icons/calendar.svg') }}" alt="" aria-hidden="true"><span><strong id="main-date"></strong><small id="main-time"></small></span></time>
       <small id="main-weight-message" hidden></small>
-      <button class="icon-button main-maximize-button" id="main-maximize-button" type="button" title="Maximize Main Screen" aria-label="Maximize Main Screen" aria-pressed="false" aria-controls="main-navigation">
-        <img src="{{ url_for('static', filename='icons/maximize.svg') }}" data-maximize-src="{{ url_for('static', filename='icons/maximize.svg') }}" data-restore-src="{{ url_for('static', filename='icons/panel-top-open.svg') }}" alt="" aria-hidden="true">
+      {% if can_access_settings %}<a class="icon-button main-settings-button" id="main-settings-button" href="/settings" title="Settings" aria-label="Settings">
+        <img src="{{ url_for('static', filename='icons/settings.svg') }}" alt="" aria-hidden="true">
+      </a>{% endif %}
+      <button class="icon-button main-product-info-button" id="main-product-info-button" type="button" title="Captured products" aria-label="Captured products" hidden>
+        <img src="{{ url_for('static', filename='icons/info.svg') }}" alt="" aria-hidden="true">
       </button>
       <button class="complete-melt-button" id="complete-melt-button" type="button" hidden>Mark as completed (0)</button>
       <div class="maximized-live-controls" id="maximized-live-controls" hidden></div>
@@ -72,9 +73,23 @@
       <div class="complete-dialog-actions"><button class="primary" type="submit">OK</button></div>
     </form>
   </dialog>
+  <dialog class="complete-melt-dialog scale-error-dialog" id="scale-error-dialog" aria-labelledby="scale-error-title" aria-describedby="scale-error-message">
+    <form method="dialog">
+      <h2 id="scale-error-title">Scale disconnected</h2>
+      <p id="scale-error-message"></p>
+      <div class="complete-dialog-actions"><button class="primary" type="submit">OK</button></div>
+    </form>
+  </dialog>
+  <dialog class="complete-melt-dialog product-info-dialog" id="product-info-dialog" aria-labelledby="product-info-title">
+    <form method="dialog">
+      <h2 id="product-info-title">Captured products</h2>
+      <div class="product-info-list" id="product-info-list"></div>
+      <div class="complete-dialog-actions"><button class="primary" type="submit">Close</button></div>
+    </form>
+  </dialog>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
-  <script src="{{ url_for('static', filename='main.js', v='15') }}"></script>
-  <script src="{{ url_for('static', filename='fullscreen.js', v='5') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
+  <script src="{{ url_for('static', filename='main.js', v='20') }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>
 </html>

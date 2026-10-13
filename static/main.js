@@ -4,27 +4,41 @@ const mainState = {lastId: 0, settings: null, weight: "", weightStable: false, c
 const mainHeader = document.querySelector(".sidebar");
 mainHeader.id = "main-navigation";
 mainHeader.appendChild($("complete-melt-button"));
-$("main-maximize-button").addEventListener("click", () => {
-  const maximized = document.body.classList.toggle("main-maximized");
+function setMainMaximized(maximized) {
+  document.body.classList.toggle("main-maximized", maximized);
   mainHeader.hidden = maximized;
-  const button = $("main-maximize-button");
-  const label = maximized ? "Restore top navigation" : "Maximize Main Screen";
-  button.title = label;
-  button.setAttribute("aria-label", label);
-  button.setAttribute("aria-pressed", String(maximized));
-  const icon = button.querySelector("img");
-  icon.src = maximized ? icon.dataset.restoreSrc : icon.dataset.maximizeSrc;
   const controls = $("maximized-live-controls");
   const weight = document.querySelector(".main-inline-weight");
+  const settings = $("main-settings-button");
   controls.hidden = !maximized;
   if (maximized) {
     controls.before($("complete-melt-button"));
-    controls.append(weight, $("main-status"), button);
+    controls.append(weight, $("main-status"), $("main-date-time"));
+    if (settings) controls.append(settings);
+    controls.append($("main-product-info-button"));
   } else {
-    $("main-weight-message").before(weight, $("main-status"));
-    $("main-weight-message").after(button);
+    $("main-weight-message").before(weight, $("main-status"), $("main-date-time"));
+    if (settings) $("main-weight-message").after(settings);
+    $("main-weight-message").after($("main-product-info-button"));
     mainHeader.appendChild($("complete-melt-button"));
   }
+}
+setMainMaximized(true);
+function updateMainClock() {
+  const clock = $("main-date-time");
+  const now = new Date();
+  clock.dateTime = now.toISOString();
+  $("main-date").textContent = now.toLocaleDateString([], {year:"numeric", month:"short", day:"numeric"});
+  $("main-time").textContent = now.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+}
+updateMainClock();
+setInterval(updateMainClock, 1000);
+$("main-status").addEventListener("click", () => {
+  const status = $("main-status");
+  if (!status.classList.contains("disconnected")) return;
+  const message = $("main-weight-message").textContent.trim() || "The scale is disconnected.";
+  $("scale-error-message").textContent = message;
+  $("scale-error-dialog").showModal();
 });
 let successTimer = null;
 let pendingCaptureId = null;
@@ -55,7 +69,7 @@ function setStatus(connected, connecting = false, error = "") {
   const status = $("main-status"); status.className = `status ${connected ? "connected" : connecting ? "connecting" : "disconnected"}`;
   status.querySelector("strong").textContent = connected ? "Scale connected" : connecting ? "Connecting…" : "Scale disconnected";
   const message = $("main-weight-message");
-  message.hidden = !error;
+  message.hidden = true;
   if (error) message.textContent = error;
 }
 async function pollScale() {
@@ -92,8 +106,26 @@ async function loadFurnaces() {
 }
 function restoreActiveMelt(melt) {
   mainState.activeMelt = melt ? {number:melt.melt_number, serial:melt.melt_serial,
-    furnaceId:String(melt.furnace_id), captureIds:melt.capture_ids, totalWeight:melt.melt_total_weight} : null;
+    furnaceId:String(melt.furnace_id), captureIds:melt.capture_ids, captures:melt.captures || [], totalWeight:melt.melt_total_weight} : null;
 }
+function updateProductStageActions() {
+  const inProducts = Boolean(mainState.furnace);
+  const settings = $("main-settings-button");
+  const info = $("main-product-info-button");
+  if (settings) settings.hidden = inProducts;
+  if (info) info.hidden = !inProducts;
+}
+async function showProductInfo() {
+  if (mainState.activeMelt && !mainState.activeMelt.captures?.length) {
+    const result = await requestJson(`/api/melts/unfinished?furnace_id=${encodeURIComponent(mainState.furnace.id)}`);
+    restoreActiveMelt(result.melt);
+  }
+  const list = $("product-info-list");
+  const captures = mainState.activeMelt?.captures || [];
+  list.innerHTML = captures.length ? captures.map((item, index) => `<div class="product-info-row"><strong>${index + 1}. ${escapeHtml(item.product_name || "Product")}</strong><span>${escapeHtml(item.weight)} kg</span></div>`).join("") : '<p class="empty">No products captured in this melt yet.</p>';
+  $("product-info-dialog").showModal();
+}
+$("main-product-info-button").addEventListener("click", showProductInfo);
 async function selectFurnace(button, recoveredMelt) {
   if (selectingFurnace) return;
   selectingFurnace = true;
@@ -116,6 +148,7 @@ async function selectFurnace(button, recoveredMelt) {
       if (selected) selected.classList.add("selected");
     }
     updateCompleteButtons();
+    updateProductStageActions();
   } catch (error) {
     const message = $("capture-message");
     message.className = "capture-message failure";
@@ -196,6 +229,7 @@ $("cancel-capture-button").addEventListener("click", async () => {
     if (mainState.activeMelt) {
       mainState.activeMelt.captureIds = mainState.activeMelt.captureIds.filter(id => id !== result.id);
       mainState.activeMelt.totalWeight = Math.max(0, mainState.activeMelt.totalWeight - numericWeight($("success-weight").textContent));
+      mainState.activeMelt.captures = mainState.activeMelt.captures.filter(item => item.id !== result.id);
       if (!mainState.activeMelt.captureIds.length) mainState.activeMelt = null;
       updateCompleteButtons();
     }
@@ -257,6 +291,7 @@ $("furnace-back").addEventListener("click", () => {
   $("main-product-context").hidden = true;
   $("furnace-selector").hidden = false;
   updateCompleteButtons();
+  updateProductStageActions();
 });
 async function initializeMain() {
   try {

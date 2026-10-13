@@ -221,7 +221,7 @@ button:hover { border-color:#48635b; }.primary { border:0; min-width:118px; colo
 .main-screen .furnace-selector .selector-title > strong { position:static; }
 .main-screen .furnace-grid { height:calc(100% - 50px); grid-template-columns:repeat(3,minmax(0,1fr)); align-items:stretch; }
 .main-screen .furnace-choice { height:100%; min-height:260px; display:flex; flex-direction:column; }
-.main-screen .furnace-choice img { width:100%; height:calc(100% - 48px); object-fit:contain; }
+.main-screen .furnace-choice img { width:100%; height:calc(100% - 48px); object-fit:cover; object-position:center; }
 .main-screen .furnace-choice span { width:100%; height:48px; padding:14px; text-align:center; }
 .main-screen .product-selector { height:calc(100vh - 144px); }
 .main-product-context { min-width:0; display:flex; align-items:center; gap:12px; margin-right:auto; }
@@ -533,14 +533,14 @@ button:hover { border-color:#48635b; }.primary { border:0; min-width:118px; colo
   .main-live-bar .main-inline-weight strong { font-size:22px; }
 }
 
-.main-maximize-button { flex:none; width:36px; height:36px; padding:7px; border-radius:6px; }
-.main-maximize-button img { display:block; width:20px; height:20px; filter:brightness(0) saturate(100%) invert(83%) sepia(33%) saturate(817%) hue-rotate(91deg); }
+.main-maximize-button,.main-settings-button,.main-product-info-button { flex:none; width:36px; height:36px; padding:7px; border-radius:6px; }
+.main-maximize-button img,.main-settings-button img,.main-product-info-button img { display:block; width:20px; height:20px; filter:brightness(0) saturate(100%) invert(83%) sepia(33%) saturate(817%) hue-rotate(91deg); }
 .main-page.main-maximized .sidebar { display:none; }
 .main-page.main-maximized .main-screen.shell.with-sidebar { display:flex; flex-direction:column; padding-top:8px !important; }
 .main-page.main-maximized .main-live-bar { flex:none; display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); height:auto; min-height:52px; }
 .main-page.main-maximized .main-product-context { grid-column:1; grid-row:1; min-width:0; overflow:hidden; }
 .main-page.main-maximized .main-product-context h2 { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.main-page.main-maximized .maximized-live-controls { grid-column:3; grid-row:1; display:flex; align-items:center; justify-content:flex-end; gap:6px; min-width:0; }
+.main-page.main-maximized .maximized-live-controls { grid-column:3; grid-row:1; display:flex; align-items:center; justify-content:flex-end; gap:8px; min-width:0; }
 .main-page.main-maximized .main-inline-weight { margin-left:0; }
 .main-page.main-maximized .main-live-bar > small { grid-column:1/-1; }
 .main-page.main-maximized .main-screen.shell .furnace-selector,
