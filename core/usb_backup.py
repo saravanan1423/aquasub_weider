@@ -1,13 +1,18 @@
-import json
-import hashlib
+import calendar
 import errno
+import hashlib
+import json
 import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import uuid
 from datetime import datetime
 from pathlib import Path
+
+from flask import current_app
+from werkzeug.utils import secure_filename
 
 from core.report_export import report_csv, report_pdf
 
@@ -118,7 +123,89 @@ def backup_report(reports, drive_id):
             "report_type": "both", "total_weight": report["total_net_weight"]}
 
 
-def backup_shift_reports(reports, drive_id, job_key):
+REPORT_FILENAMES=("Melt_Summary.csv", "Melt_Summary.pdf", "Individual_Captures.csv", "Individual_Captures.pdf")
+
+
+def scheduled_report_name(reports):
+    report=reports["melt"]
+    starts=datetime.fromisoformat(report["range_from"])
+    schedule=report.get("backup_schedule", "shift")
+    if schedule == "monthly":
+        return f"meltreport_{calendar.month_name[starts.month]}_{starts.year}"
+    name=f"meltreport_{starts.date().isoformat()}"
+    if schedule == "shift":
+        name += "_" + (secure_filename(report["shift"]) or "shift")
+    return name
+
+
+def report_payload_hash(reports):
+    return hashlib.sha256(json.dumps(reports, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def scheduled_report_files(reports, key):
+    files={}
+    for report_type, prefix in (("melt", "Melt_Summary"), ("individual", "Individual_Captures")):
+        files[f"{prefix}.csv"]=report_csv(reports[report_type])
+        files[f"{prefix}.pdf"]=report_pdf(reports[report_type])
+    manifest={"job_key":key, "payload_hash":report_payload_hash(reports),
+              "files":{file:hashlib.sha256(content).hexdigest() for file, content in files.items()}}
+    files[".backup.json"]=json.dumps(manifest, sort_keys=True).encode("utf-8")
+    return files
+
+
+def verified_report_files(folder, reports, key):
+    try:
+        manifest_bytes=(folder / ".backup.json").read_bytes()
+        manifest=json.loads(manifest_bytes)
+        files={name:(folder / name).read_bytes() for name in REPORT_FILENAMES}
+        valid=(manifest["job_key"] == key and manifest["payload_hash"] == report_payload_hash(reports)
+               and set(manifest["files"]) == set(REPORT_FILENAMES)
+               and all(hashlib.sha256(content).hexdigest() == manifest["files"][name] for name,content in files.items()))
+        if not valid:
+            raise ValueError("Report checksum mismatch")
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise OSError("Existing report backup is incomplete or damaged. Contact admin.") from error
+    return {**files, ".backup.json":manifest_bytes}
+
+
+def report_destination(parent, reports, key):
+    folder=parent / scheduled_report_name(reports)
+    if folder.exists():
+        try:
+            owner=json.loads((folder / ".backup.json").read_bytes()).get("job_key")
+        except (OSError, ValueError, AttributeError):
+            owner=None
+        if owner != key:
+            # Keep distinct report periods with the same display name without overwriting.
+            folder=parent / f"{folder.name}_{key}"
+    return folder
+
+
+def save_local_reports(reports, job_key):
+    key=uuid.UUID(job_key).hex
+    parent=Path(current_app.config.get("REPORT_STORAGE_DIR", Path(current_app.root_path) / "storage" / "reports"))
+    parent.mkdir(parents=True, exist_ok=True)
+    folder=report_destination(parent, reports, key)
+    if folder.exists():
+        verified_report_files(folder, reports, key)
+        sync_directory(parent)
+        return str(folder)
+    files=scheduled_report_files(reports, key)
+    with tempfile.TemporaryDirectory(prefix=f".{folder.name}.", suffix=".partial", dir=parent) as temporary:
+        staged=Path(temporary) / "reports"
+        staged.mkdir()
+        for name, content in files.items():
+            with (staged / name).open("wb") as file:
+                file.write(content)
+                file.flush()
+                os.fsync(file.fileno())
+        sync_directory(staged)
+        os.replace(staged, folder)
+        sync_directory(parent)
+    return str(folder)
+
+
+def backup_shift_reports(reports, drive_id, job_key, local_folder=None):
     # A stable directory and checksum manifest make crash retries idempotent.
     key=uuid.UUID(job_key).hex
     drive=resolve_drive(drive_id)
@@ -126,31 +213,18 @@ def backup_shift_reports(reports, drive_id, job_key):
     if not root.is_mount():
         raise OSError("USB drive was removed during backup")
     day=datetime.fromisoformat(reports["melt"]["range_from"]).strftime("%Y%m%d_%H%M")
-    name=f"Shift_Backup_{day}_{key}"
-    folder=root / "Weider Reports" / name
-    payload_hash=hashlib.sha256(json.dumps(reports, sort_keys=True).encode("utf-8")).hexdigest()
-    filenames=["Melt_Summary.csv", "Melt_Summary.pdf", "Individual_Captures.csv", "Individual_Captures.pdf"]
+    schedule=reports["melt"].get("backup_schedule", "shift")
+    prefix={"shift":"Shift", "daily":"Daily", "monthly":"Monthly"}.get(schedule, "Shift")
+    legacy=root / "Weider Reports" / f"{prefix}_Backup_{day}_{key}"
+    folder=legacy if legacy.exists() else report_destination(root / "Weider Reports", reports, key)
+    filenames=list(REPORT_FILENAMES)
     if folder.exists():
-        try:
-            manifest=json.loads((folder / ".backup.json").read_text(encoding="utf-8"))
-            valid=(manifest["job_key"] == key and manifest["payload_hash"] == payload_hash
-                   and set(manifest["files"]) == set(filenames)
-                   and all(hashlib.sha256((folder / file).read_bytes()).hexdigest() == manifest["files"][file] for file in filenames))
-        except (OSError, ValueError, KeyError, TypeError):
-            valid=False
-        if not valid:
-            raise OSError("Existing shift backup is incomplete or damaged. Use another USB drive or contact admin.")
+        verified_report_files(folder, reports, key)
         if not root.is_mount():
             raise OSError("USB drive was removed during backup")
         sync_directory(folder.parent)
         return {"drive":drive["label"], "folder":str(folder), "files":filenames}
-    files={}
-    for report_type, prefix in (("melt", "Melt_Summary"), ("individual", "Individual_Captures")):
-        files[f"{prefix}.csv"]=report_csv(reports[report_type])
-        files[f"{prefix}.pdf"]=report_pdf(reports[report_type])
-    manifest={"job_key":key, "payload_hash":payload_hash,
-              "files":{file:hashlib.sha256(content).hexdigest() for file, content in files.items()}}
-    files[".backup.json"]=json.dumps(manifest, sort_keys=True).encode("utf-8")
-    result=write_usb_files(drive, name, files)
+    files=verified_report_files(Path(local_folder), reports, key) if local_folder else scheduled_report_files(reports, key)
+    result=write_usb_files(drive, folder.name, files)
     result["files"]=filenames
     return result

@@ -31,7 +31,7 @@ def login():
             if not destination.startswith("/") or destination.startswith("//"):
                 if user["role"]=="admin": destination="/"
                 else:
-                    _,permissions=current_user_access(); destination=next((path for screen,path in (("main","/"),("settings","/settings"),("communication","/communication"),("products","/images"),("logs","/logs"),("shifts","/shifts"),("melts","/melt-settings")) if screen in permissions),"/login")
+                    _,permissions=current_user_access(); destination=next((path for screen,path in (("main","/"),("settings","/settings"),("communication","/communication"),("products","/images"),("logs","/logs"),("shifts","/shifts"),("melts","/melt-settings"),("allocation","/material-allocation"),("backup","/backup-settings")) if screen in permissions),"/login")
             return redirect(destination)
         error="Invalid username or password"
     with database_connection() as connection:

@@ -32,6 +32,8 @@ class MeltRecoveryTests(unittest.TestCase):
             connection.commit()
             connection.close()
         self.client = self.new_client(self.admin_id, "admin")
+        for index in range(2):
+            self.allocate(index)
 
     def tearDown(self):
         self.client = None
@@ -72,6 +74,22 @@ class MeltRecoveryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.json)
         return response.json
 
+    def allocate(self, furnace=0):
+        context = self.client.get(f"/api/material-allocations/{self.furnaces[furnace]}").json
+        response = self.client.put(f"/api/material-allocations/{self.furnaces[furnace]}", json={
+            "melt_number": context["melt_number"],
+            "materials": [{"product_image_id": self.products[furnace], "allocated_kg": "10000"}],
+        })
+        self.assertEqual(response.status_code, 200, response.json)
+
+    def verify_and_allocate_next(self, furnace=0):
+        context = self.client.get(f"/api/material-allocations/{self.furnaces[furnace]}").json
+        response = self.client.post(f"/api/material-allocations/{self.furnaces[furnace]}/complete", json={
+            "melt_number": context["melt_number"], "main_completed_at": context["main_completed_at"],
+        })
+        self.assertEqual(response.status_code, 200, response.json)
+        self.allocate(furnace)
+
     def complete(self, melt, client=None):
         return (client or self.client).post("/api/melts/complete", json={
             "furnace_id": melt["furnace_id"], "melt_number": melt["melt_number"],
@@ -103,6 +121,7 @@ class MeltRecoveryTests(unittest.TestCase):
         })
         self.assertEqual(stale.status_code, 409)
         self.assertEqual(self.client.post(f"/api/weight-captures/{melt['id']}/cancel").status_code, 409)
+        self.verify_and_allocate_next()
         self.assertEqual(self.capture(2)["melt_number"], "A2")
 
     def test_latest_open_melt_is_recovered_and_furnace_lookup_finds_other_open_melt(self):
@@ -140,10 +159,12 @@ class MeltRecoveryTests(unittest.TestCase):
         self.assertEqual((continued_a["melt_number"], continued_a["melt_count"], continued_a["melt_total_weight"]), ("A1", 2, 8))
         self.assertEqual((continued_b["melt_number"], continued_b["melt_count"], continued_b["melt_total_weight"]), ("B1", 2, 6))
         self.assertEqual(self.complete(continued_b).status_code, 200)
+        self.verify_and_allocate_next(1)
         self.assertEqual(self.capture(1, furnace=1)["melt_number"], "B2")
         self.assertEqual(self.capture(1)["melt_number"], "A1")
         open_a = self.client.get(f"/api/melts/unfinished?furnace_id={self.furnaces[0]}").json["melt"]
         self.assertEqual(self.complete(open_a).status_code, 200)
+        self.verify_and_allocate_next()
         self.assertEqual(self.capture(2)["melt_number"], "A2")
 
     def test_stale_completion_cannot_partially_complete_melt(self):

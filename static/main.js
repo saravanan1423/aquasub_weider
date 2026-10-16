@@ -1,6 +1,6 @@
 const $ = id => document.getElementById(id);
 let pollIntervalMs = 200;
-const mainState = {lastId: 0, settings: null, weight: "", weightStable: false, connectingAttempted: false, furnace: null, products: [], activeMelt: null, successSeconds: 10};
+const mainState = {lastId: 0, settings: null, weight: "", weightStable: false, connectingAttempted: false, furnace: null, products: [], activeMelt: null, allocation: null, successSeconds: 10};
 const mainHeader = document.querySelector(".sidebar");
 mainHeader.id = "main-navigation";
 mainHeader.appendChild($("complete-melt-button"));
@@ -96,9 +96,42 @@ function showFurnaceProducts() {
   const grid = $("main-product-grid");
   grid.classList.add("layout-six");
   grid.classList.remove("layout-eight");
-  grid.innerHTML = products.length ? products.map(item => `<button class="product-choice" data-id="${item.id}" type="button"><img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(item.image_name)}"><span>${escapeHtml(item.image_name)}</span></button>`).join("") : '<p class="gallery-empty">No products have been added to this furnace.</p>';
+  grid.innerHTML = products.length ? products.map(item => {
+    const material = mainState.allocation?.materials.find(row => row.id === item.id);
+    const disabled = !mainState.allocation?.configured || mainState.allocation?.status === "awaiting_verification" || !material || material.allocated_kg === null;
+    const weight = material?.allocated_kg !== null && material?.allocated_kg !== undefined
+      ? `<small class="material-allowance">${escapeHtml(material.captured_kg)} / ${escapeHtml(material.allocated_kg)} kg</small>` : "";
+    return `<button class="product-choice" data-id="${item.id}" type="button" ${disabled ? 'disabled title="Not allocated to this melt"' : ""}><img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(item.image_name)}"><span>${escapeHtml(item.image_name)}${weight}</span></button>`;
+  }).join("") : '<p class="gallery-empty">No products have been added to this furnace.</p>';
   document.querySelectorAll(".product-choice").forEach(button => button.addEventListener("click", () => captureWeight(button)));
 }
+async function refreshAllocation() {
+  if (!mainState.furnace) return;
+  mainState.allocation = await requestJson(`/api/material-allocations/${mainState.furnace.id}`);
+  showFurnaceProducts();
+  if (!mainState.activeMelt && mainState.allocation.configured) {
+    $("product-selector-title").textContent = `${mainState.furnace.name} products - ${mainState.allocation.melt_number}`;
+  }
+}
+let syncingAllocation = false;
+async function syncMaterialAllocation() {
+  if (!mainState.furnace || selectingFurnace || capturingWeight || syncingAllocation || !$("capture-success-screen").hidden || document.hidden) return;
+  syncingAllocation = true;
+  const furnaceId = mainState.furnace.id;
+  try {
+    const allocation = await requestJson(`/api/material-allocations/${furnaceId}`);
+    if (JSON.stringify(allocation) === JSON.stringify(mainState.allocation)) return;
+    const {melt} = await requestJson(`/api/melts/unfinished?furnace_id=${encodeURIComponent(furnaceId)}`);
+    if (mainState.furnace?.id !== furnaceId || selectingFurnace || capturingWeight) return;
+    mainState.allocation = allocation;
+    restoreActiveMelt(melt);
+    showFurnaceProducts();
+    updateCompleteButtons();
+    if (!melt) $("product-selector-title").textContent = `${mainState.furnace.name} products - ${allocation.melt_number}`;
+  } catch { /* Retry when allocation status becomes available. */ }
+  finally { syncingAllocation = false; }
+}
+setInterval(syncMaterialAllocation, 5000);
 async function loadFurnaces() {
   const furnaces = await requestJson("/api/furnaces"); $("furnace-count").textContent = furnaces.length;
   $("furnace-grid").innerHTML = furnaces.length ? furnaces.map(item => `<button class="furnace-choice" data-id="${escapeHtml(item.id)}" data-name="${escapeHtml(item.name)}" data-image-url="${escapeHtml(item.image_url)}" type="button"><img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(item.name)}"><span>${escapeHtml(item.name)}</span></button>`).join("") : '<p class="gallery-empty">Add furnace images from Product Master first.</p>';
@@ -134,7 +167,9 @@ async function selectFurnace(button, recoveredMelt) {
     const melt = recoveredMelt === undefined
       ? (await requestJson(`/api/melts/unfinished?furnace_id=${encodeURIComponent(button.dataset.id)}`)).melt
       : recoveredMelt;
+    const allocation = await requestJson(`/api/material-allocations/${encodeURIComponent(button.dataset.id)}`);
     mainState.furnace = {id: button.dataset.id, name: button.dataset.name, imageUrl: button.dataset.imageUrl};
+    mainState.allocation = allocation;
     restoreActiveMelt(melt);
     document.querySelectorAll(".furnace-choice").forEach(item => item.classList.remove("selected"));
     button.classList.add("selected");
@@ -148,6 +183,7 @@ async function selectFurnace(button, recoveredMelt) {
       if (selected) selected.classList.add("selected");
     }
     updateCompleteButtons();
+    if (!melt && allocation.configured) $("product-selector-title").textContent = `${mainState.furnace.name} products - ${allocation.melt_number}`;
     updateProductStageActions();
   } catch (error) {
     const message = $("capture-message");
@@ -181,8 +217,9 @@ async function captureWeight(button) {
     updateCompleteButtons();
     document.querySelectorAll(".product-choice").forEach(item => item.classList.remove("selected")); button.classList.add("selected");
     showCaptureSuccess(result);
+    await refreshAllocation();
   } catch (error) {
-    if (error.code === "threshold_exceeded") {
+    if (error.code === "threshold_exceeded" || error.code === "allocation_exceeded" || error.code === "allocation_required") {
       $("threshold-dialog-message").textContent = error.message;
       $("threshold-dialog").showModal();
     } else {
@@ -234,6 +271,7 @@ $("cancel-capture-button").addEventListener("click", async () => {
       updateCompleteButtons();
     }
     clearInterval(successTimer); pendingCaptureId = null; $("capture-success-screen").hidden = true;
+    await refreshAllocation();
     const message = $("capture-message"); message.className = "capture-message failure"; message.textContent = "Capture cancelled"; message.hidden = false;
     setTimeout(() => { message.hidden = true; }, 2000);
   } catch (error) { button.disabled = false; button.textContent = error.message; }

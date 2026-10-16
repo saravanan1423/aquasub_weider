@@ -52,6 +52,9 @@ class ThresholdTests(unittest.TestCase):
         self.client = app.test_client()
         with self.client.session_transaction() as session:
             session.update(user_id=self.admin_id, username="admin")
+        self.client.put(f"/api/material-allocations/{self.furnace_id}", json={
+            "melt_number": "A1", "materials": [{"product_image_id": self.product_id, "allocated_kg": "10000"}],
+        })
 
     def tearDown(self):
         self.client = None

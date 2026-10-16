@@ -36,6 +36,7 @@ def create_app():
         DATABASE_PATH=Path(application.instance_path) / "serial_monitor.db",
         PRODUCT_IMAGE_DIR=Path(application.root_path) / "storage" / "product_images",
         MASTER_IMAGE_DIR=Path(application.root_path) / "storage" / "master_images",
+        REPORT_STORAGE_DIR=Path(application.root_path) / "storage" / "reports",
         MAX_CONTENT_LENGTH=25 * 1024 * 1024,
         SECRET_KEY=application_secret(application.instance_path),
     )

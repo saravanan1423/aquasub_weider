@@ -236,13 +236,14 @@ async function loadAutomaticBackupStatus() {
   try {
     const response=await fetch("/api/automatic-backups", {cache:"no-store"});
     const data=await response.json();
-    if (!response.ok) throw new Error(data.error || "Could not load shift backup status");
+    if (!response.ok) throw new Error(data.error || "Could not load backup status");
     const remaining=data.pending + data.processing;
-    let message="Shift backup: monitoring";
-    if (data.processing) message=`Shift backup: saving (${remaining} remaining)`;
-    else if (data.pending) message=`Shift backup: ${data.pending} pending - ${data.last_error || "waiting for writable USB"}`;
-    else if (data.last_completed) message=`Shift backup: ${data.last_completed.shift_name} saved to ${data.last_completed.drive}`;
-    else if (!data.monitoring) message="Shift backup: worker not running";
+    let message=`Automatic backup: ${data.settings.frequency}`;
+    if (data.processing) message=`Backup: saving (${remaining} remaining)`;
+    else if (data.pending) message=`Backup: ${data.pending} pending - ${data.last_error || (data.local_pending ? `${data.local_pending} saved locally; waiting for USB` : "saving local reports")}`;
+    else if (!data.settings.enabled) message="Automatic backup: off";
+    else if (!data.monitoring) message="Automatic backup: worker not running";
+    else if (data.last_completed) message=`Backup: ${data.last_completed.shift_name} saved to ${data.last_completed.drive}`;
     box.textContent=message;
     box.title=message;
     box.hidden=false;

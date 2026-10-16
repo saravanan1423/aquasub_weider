@@ -109,10 +109,34 @@ def initialize_database(app):
                 success_display_seconds INTEGER NOT NULL DEFAULT 10,
                 updated_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS melt_material_allocations (
+                furnace_id INTEGER NOT NULL,
+                melt_number TEXT NOT NULL,
+                melt_serial INTEGER,
+                main_completed_at TEXT,
+                completed_at TEXT,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (furnace_id, melt_number)
+            );
+            CREATE TABLE IF NOT EXISTS melt_material_limits (
+                furnace_id INTEGER NOT NULL,
+                melt_number TEXT NOT NULL,
+                product_image_id INTEGER NOT NULL,
+                allocated_kg TEXT NOT NULL,
+                PRIMARY KEY (furnace_id, melt_number, product_image_id)
+            );
             CREATE TABLE IF NOT EXISTS automatic_backup_state (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
                 started_at TEXT NOT NULL,
                 last_checked_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS backup_settings (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                enabled INTEGER NOT NULL DEFAULT 1,
+                frequency TEXT NOT NULL DEFAULT 'shift',
+                backup_time TEXT NOT NULL DEFAULT '00:00',
+                month_day INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS automatic_backup_jobs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -133,6 +157,13 @@ def initialize_database(app):
                 UNIQUE(shift_id, starts_at, ends_at)
             );
         """)
+        backup_columns = {row[1] for row in connection.execute("PRAGMA table_info(automatic_backup_jobs)")}
+        if "schedule_type" not in backup_columns:
+            connection.execute("ALTER TABLE automatic_backup_jobs ADD COLUMN schedule_type TEXT NOT NULL DEFAULT 'shift'")
+        for name in ("local_folder", "local_saved_at"):
+            if name not in backup_columns:
+                connection.execute(f"ALTER TABLE automatic_backup_jobs ADD COLUMN {name} TEXT")
+        connection.execute("INSERT OR IGNORE INTO backup_settings (id,updated_at) VALUES (1,?)", (datetime.now().astimezone().isoformat(),))
         columns = {row[1] for row in connection.execute("PRAGMA table_info(users)")}
         if "role" not in columns:
             connection.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
@@ -172,6 +203,20 @@ def initialize_database(app):
         if "melt_completed_at" not in capture_columns:
             connection.execute("ALTER TABLE weight_captures ADD COLUMN melt_completed_at TEXT")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_weight_captures_open_melt ON weight_captures(furnace_id,melt_number,melt_completed_at)")
+        allocation_columns = {row[1] for row in connection.execute("PRAGMA table_info(melt_material_allocations)")}
+        for name, kind in (("melt_serial", "INTEGER"), ("main_completed_at", "TEXT"), ("completed_at", "TEXT")):
+            if name not in allocation_columns:
+                connection.execute(f"ALTER TABLE melt_material_allocations ADD COLUMN {name} {kind}")
+        connection.execute("UPDATE melt_material_allocations SET melt_serial=CAST(substr(melt_number,2) AS INTEGER) WHERE melt_serial IS NULL")
+        if "completed_at" not in allocation_columns:
+            # Previously completed melts remain historical when installing the review workflow.
+            connection.execute("""
+                UPDATE melt_material_allocations SET completed_at=(
+                    SELECT MAX(c.melt_completed_at) FROM weight_captures c
+                    WHERE c.furnace_id=CAST(melt_material_allocations.furnace_id AS TEXT)
+                      AND c.melt_number=melt_material_allocations.melt_number
+                )
+            """)
         device_columns = {row[1] for row in connection.execute("PRAGMA table_info(device_settings)")}
         # Carry forward limits saved before they moved to Melt Number Settings.
         if {"individual_threshold_kg", "melt_threshold_kg"} <= device_columns:

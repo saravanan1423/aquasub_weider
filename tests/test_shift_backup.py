@@ -19,6 +19,8 @@ class ShiftBackupTests(unittest.TestCase):
     def setUp(self):
         self.fixture=test_usb_backup.UsbBackupTests()
         self.fixture.setUp()
+        self.original_reports=app.config.get("REPORT_STORAGE_DIR")
+        app.config["REPORT_STORAGE_DIR"]=Path(self.fixture.temporary.name) / "reports"
         self.day=datetime(2026, 10, 12, tzinfo=datetime.now().astimezone().tzinfo)
         self.worker=ShiftBackupWorker(app)
         with app.app_context():
@@ -31,6 +33,10 @@ class ShiftBackupTests(unittest.TestCase):
             connection.close()
 
     def tearDown(self):
+        if self.original_reports is None:
+            app.config.pop("REPORT_STORAGE_DIR",None)
+        else:
+            app.config["REPORT_STORAGE_DIR"]=self.original_reports
         self.fixture.tearDown()
 
     def add_capture(self, connection, product, weight, at):

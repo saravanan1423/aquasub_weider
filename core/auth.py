@@ -3,8 +3,8 @@ from flask import jsonify, redirect, render_template, request, session, url_for
 
 from core.database import database_connection
 
-SCREENS = {"main", "settings", "communication", "shifts", "melts", "products", "logs"}
-SETTINGS_SCREENS = {"communication", "shifts", "melts", "products"}
+SCREENS = {"main", "settings", "communication", "shifts", "melts", "allocation", "backup", "products", "logs"}
+SETTINGS_SCREENS = {"communication", "shifts", "melts", "allocation", "backup", "products"}
 
 
 def current_user_access():
@@ -25,11 +25,15 @@ def required_permissions():
     if path == "/communication": return {"communication"}
     if path == "/shifts": return {"shifts"}
     if path == "/melt-settings": return {"melts"}
+    if path == "/material-allocation": return {"allocation"}
+    if path.startswith("/api/material-allocations/"): return {"main", "allocation"} if method == "GET" else {"allocation"}
     if path == "/api/melt-threshold-settings": return {"admin"}
     if path == "/api/capture-display-settings": return {"admin"} if method == "PUT" else {"main", "melts"}
     if path == "/images": return {"products"}
     if path == "/logs": return {"logs"}
-    if path in {"/api/automatic-backups", "/api/usb-drives", "/api/report-usb-backup"}: return {"logs"}
+    if path in {"/backup-settings", "/api/backup-settings"}: return {"backup"}
+    if path in {"/backup-history", "/api/backup-history", "/api/automatic-backups"}: return {"logs", "backup"}
+    if path in {"/api/usb-drives", "/api/report-usb-backup"}: return {"logs"}
     if path in {"/api/device-network", "/api/desktop/top-bar"}: return {"admin"}
     if path in {"/users", "/device-settings", "/api/device-settings"} or path.startswith("/api/users") or path in {"/api/change-password", "/api/rustdesk/open"}: return {"admin"}
     if path.endswith("/cancel") and path.startswith("/api/weight-captures/"): return {"main"}
@@ -37,7 +41,7 @@ def required_permissions():
     if path == "/api/weight-captures": return {"main"} if method == "POST" else {"logs"}
     if path in {"/api/melts/complete", "/api/melts/unfinished"}: return {"main"}
     if path in {"/api/capture-report", "/api/capture-report-options"}: return {"logs"}
-    if path == "/api/product-images": return {"main", "products"} if method == "GET" else {"products"}
+    if path == "/api/product-images": return {"main", "products", "melts", "allocation"} if method == "GET" else {"products"}
     if path.startswith("/api/product-images/"): return {"products"}
     if path == "/api/settings": return {"communication"} if method == "POST" else {"main", "communication"}
     if path == "/api/shifts" or path.startswith("/api/shifts/"): return {"shifts"}

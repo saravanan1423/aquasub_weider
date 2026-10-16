@@ -57,7 +57,7 @@
     ["_","-",",",".","?","backspace"],
     ["letters","space","close"]
   ];
-  const numberRows = [["1","2","3","4","5","6","7","8","9","0"],["-",".","backspace"],["close"]];
+  const numberRows = [["1","2","3"],["4","5","6"],["7","8","9"],[".","0","backspace"],["close"]];
   const panel = document.createElement("section");
   panel.className = "screen-keyboard";
   panel.hidden = true;
@@ -72,7 +72,7 @@
     const value = target?.value || "";
     const display = target?.type === "password" ? "•".repeat(value.length) : value;
     const previewBox = panel.querySelector(".keyboard-preview-value");
-    if (previewBox) previewBox.textContent = display || "Type here…";
+    if (previewBox) previewBox.textContent = display || (panel.classList.contains("numeric-keyboard") ? "" : "Type here…");
   }
   function range() {
     try { return [target.selectionStart ?? target.value.length, target.selectionEnd ?? target.value.length]; }
@@ -101,8 +101,9 @@
     target.focus({preventScroll:true}); emitInput();
   }
   function draw() {
-    const rows = target?.type === "number" ? numberRows : specialMode ? specialRows : textRows;
-    panel.classList.toggle("numeric-keyboard", target?.type === "number");
+    const numeric = target?.type === "number" || ["decimal", "numeric"].includes(target?.inputMode);
+    const rows = numeric ? numberRows : specialMode ? specialRows : textRows;
+    panel.classList.toggle("numeric-keyboard", numeric);
     panel.replaceChildren();
     const previewBar=document.createElement("div"); previewBar.className="keyboard-preview";
     const previewLabel=document.createElement("span"); previewLabel.textContent="INPUT";
@@ -110,9 +111,19 @@
     previewBar.append(previewLabel,previewValue); panel.append(previewBar);
     rows.forEach(row => {
       const rowElement=document.createElement("div"); rowElement.className="keyboard-row";
+      rowElement.classList.toggle("keyboard-close-row", numeric && row.length === 1 && row[0] === "close");
       row.forEach(key => {
         const keyButton=document.createElement("button"); keyButton.type="button"; keyButton.dataset.key=key; keyButton.className=`key-${key === "\\" ? "backslash" : key}`;
         keyButton.textContent = key === "backspace" ? "⌫" : key === "shift" ? "⇧ Shift" : key === "special" ? "#+=" : key === "letters" ? "ABC" : key === "space" ? "Space" : key === "close" ? "Close" : shifted ? key.toUpperCase() : key;
+        if (numeric && key === "backspace") {
+          keyButton.textContent = "";
+          keyButton.setAttribute("aria-label", "Backspace");
+          keyButton.title = "Backspace";
+          const icon = document.createElement("i");
+          icon.className = "ui-icon";
+          icon.style.setProperty("--icon", "url('/static/icons/delete.svg')");
+          keyButton.append(icon);
+        }
         rowElement.append(keyButton);
       });
       panel.append(rowElement);

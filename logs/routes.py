@@ -83,6 +83,65 @@ def automatic_backups():
     from core.shift_backup import backup_status
     return jsonify({"ok":True, **backup_status()})
 
+
+@logs_bp.get("/backup-settings")
+def backup_settings_page():
+    return render_template("backup_settings.html", history_only=False)
+
+
+@logs_bp.get("/backup-history")
+def backup_history_page():
+    return render_template("backup_settings.html", history_only=True)
+
+
+@logs_bp.route("/api/backup-settings", methods=["GET", "PUT"])
+def backup_settings():
+    if request.method == "GET":
+        with database_connection() as connection:
+            row=connection.execute("SELECT enabled,frequency,backup_time,month_day FROM backup_settings WHERE id=1").fetchone()
+        return jsonify({"ok":True, "settings":dict(row)})
+    data=request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"ok":False, "error":"Enter valid backup settings"}), 400
+    if type(data.get("enabled")) is not bool or data.get("frequency") not in ("shift", "daily", "monthly"):
+        return jsonify({"ok":False, "error":"Select a valid backup schedule"}), 400
+    backup_time=data.get("backup_time")
+    month_day=data.get("month_day")
+    if not isinstance(backup_time, str) or not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", backup_time):
+        return jsonify({"ok":False, "error":"Select a valid backup time"}), 400
+    if type(month_day) is not int or not 1 <= month_day <= 31:
+        return jsonify({"ok":False, "error":"Choose a day from 1 to 31"}), 400
+    now=datetime.now().astimezone().isoformat()
+    after={"enabled":int(data["enabled"]), "frequency":data["frequency"], "backup_time":backup_time, "month_day":month_day}
+    with database_connection() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        before=dict(connection.execute("SELECT enabled,frequency,backup_time,month_day FROM backup_settings WHERE id=1").fetchone())
+        if before != after:
+            connection.execute("UPDATE backup_settings SET enabled=?,frequency=?,backup_time=?,month_day=?,updated_at=? WHERE id=1",
+                               (after["enabled"], after["frequency"], backup_time, month_day, now))
+            # Start the changed schedule now without replaying historical periods.
+            connection.execute("""INSERT INTO automatic_backup_state (id,started_at,last_checked_at) VALUES (1,?,?)
+                ON CONFLICT(id) DO UPDATE SET last_checked_at=excluded.last_checked_at""", (now, now))
+    record_changes("backup_settings", 1, "update", before, after)
+    return jsonify({"ok":True, "settings":after})
+
+
+@logs_bp.get("/api/backup-history")
+def backup_history():
+    try:
+        page=max(1,int(request.args.get("page",1)))
+    except ValueError:
+        page=1
+    per_page=5
+    with database_connection() as connection:
+        total=connection.execute("SELECT count(*) FROM automatic_backup_jobs").fetchone()[0]
+        pages=max(1,(total+per_page-1)//per_page)
+        page=min(page,pages)
+        rows=connection.execute("""SELECT id,schedule_type,shift_name,starts_at,ends_at,status,attempts,last_error,
+            completed_at,drive,folder,local_folder,local_saved_at FROM automatic_backup_jobs ORDER BY ends_at DESC,id DESC LIMIT ? OFFSET ?""",
+            (per_page,(page-1)*per_page)).fetchall()
+    return jsonify({"ok":True, "items":[dict(row) for row in rows], "page":page, "pages":pages, "total":total})
+
 @logs_bp.get("/api/weight-captures")
 def captures():
     if "page" in request.args:

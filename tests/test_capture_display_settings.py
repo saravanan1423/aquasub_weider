@@ -95,6 +95,9 @@ class CaptureDisplaySettingsTests(unittest.TestCase):
             connection.close()
 
         self.admin_client.put("/api/capture-display-settings", json={"success_display_seconds": 25})
+        self.admin_client.put(f"/api/material-allocations/{furnace_id}", json={
+            "melt_number": "A1", "materials": [{"product_image_id": product_id, "allocated_kg": "100"}],
+        })
         capture = self.admin_client.post("/api/weight-captures", json={
             "furnace_id": furnace_id, "product_image_id": product_id, "weight": "18"
         })

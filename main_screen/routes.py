@@ -17,6 +17,9 @@ def settings_page(): return render_template("settings.html")
 @main_bp.get("/melt-settings")
 def melt_settings_page(): return render_template("melt_number_settings.html")
 
+@main_bp.get("/material-allocation")
+def material_allocation_page(): return render_template("material_allocation.html")
+
 @main_bp.get("/api/furnaces")
 def furnaces():
     with database_connection() as connection:
@@ -29,6 +32,11 @@ def next_melt_serial(connection, furnace_id, start_serial):
         "SELECT COALESCE(MAX(melt_serial),0) FROM weight_captures WHERE furnace_id=?",
         (str(furnace_id),),
     ).fetchone()[0]
+    finalized = connection.execute(
+        "SELECT COALESCE(MAX(melt_serial),0) FROM melt_material_allocations WHERE furnace_id=? AND completed_at IS NOT NULL",
+        (furnace_id,),
+    ).fetchone()[0]
+    used = max(int(used), int(finalized))
     return max(start_serial, int(used) + 1), int(used)
 
 def numeric_weight(value):
@@ -223,6 +231,162 @@ def get_unfinished_melt():
         melt = unfinished_melt(connection, furnace_id)
     return jsonify({"ok": True, "melt": melt})
 
+
+def allocation_context(connection, furnace):
+    active = unfinished_melt(connection, furnace["id"])
+    pending = connection.execute(
+        "SELECT * FROM melt_material_allocations WHERE furnace_id=? AND completed_at IS NULL ORDER BY melt_serial DESC LIMIT 1",
+        (furnace["id"],),
+    ).fetchone()
+    serial = active["melt_serial"] if active else pending["melt_serial"] if pending else next_melt_serial(
+        connection, furnace["id"], furnace["melt_start_serial"])[0]
+    number = active["melt_number"] if active else pending["melt_number"] if pending else f'{furnace_prefix(furnace["image_name"])}{serial}'
+    allocation = connection.execute(
+        "SELECT * FROM melt_material_allocations WHERE furnace_id=? AND melt_number=?",
+        (furnace["id"], number),
+    ).fetchone()
+    configured = allocation is not None
+    rows = connection.execute("""
+        SELECT p.id, p.image_name, p.image_url, l.allocated_kg
+        FROM product_images p LEFT JOIN melt_material_limits l
+          ON l.product_image_id=p.id AND l.furnace_id=p.furnace_id AND l.melt_number=?
+        WHERE p.image_type='product' AND p.furnace_id=? ORDER BY p.id
+    """, (number, furnace["id"])).fetchall()
+    captured = {}
+    for row in connection.execute(
+        "SELECT product_image_id,weight FROM weight_captures WHERE furnace_id=? AND melt_number=?",
+        (str(furnace["id"]), number),
+    ):
+        product_id = row["product_image_id"]
+        captured[product_id] = captured.get(product_id, Decimal(0)) + (weight_amount(row["weight"]) or Decimal(0))
+    main_completed_at = allocation["main_completed_at"] if allocation else None
+    return {"furnace_id": furnace["id"], "melt_number": number, "melt_serial": serial, "configured": configured,
+            "main_completed_at": main_completed_at,
+            "status": "awaiting_verification" if main_completed_at else "allocated" if configured else "not_allocated",
+            "total_captured_kg": format(sum(captured.values(), Decimal(0)), "f"),
+            "materials": [{**dict(row), "captured_kg": format(captured.get(row["id"], Decimal(0)), "f")}
+                          for row in rows]}
+
+
+@main_bp.route("/api/material-allocations/<int:furnace_id>", methods=["GET", "PUT"])
+def material_allocations(furnace_id):
+    with database_connection() as connection:
+        connection.execute("BEGIN IMMEDIATE" if request.method == "PUT" else "BEGIN")
+        furnace = connection.execute(
+            "SELECT id,image_name,melt_start_serial FROM product_images WHERE id=? AND image_type='furnace'",
+            (furnace_id,),
+        ).fetchone()
+        if furnace is None:
+            return jsonify({"error": "Furnace not found"}), 404
+        context = allocation_context(connection, furnace)
+        if request.method == "GET":
+            return jsonify(context)
+        payload = request.get_json(silent=True) or {}
+        if payload.get("melt_number") != context["melt_number"]:
+            return jsonify({"error": "The melt number has changed. Select the furnace again before saving."}), 409
+        materials = payload.get("materials")
+        if not isinstance(materials, list):
+            return jsonify({"error": "Select materials and their allocated weights"}), 400
+        available = {item["id"]: item for item in context["materials"]}
+        limits = {}
+        try:
+            for item in materials:
+                if not isinstance(item, dict) or isinstance(item.get("product_image_id"), bool):
+                    raise ValueError("Select a valid material")
+                product_id = int(item.get("product_image_id"))
+                if product_id not in available or product_id in limits:
+                    raise ValueError("Select each material once from the chosen furnace")
+                limit = threshold_setting(item.get("allocated_kg"), "Allocated weight")
+                if limit is None:
+                    raise ValueError("Enter an allocated weight for each selected material")
+                limits[product_id] = limit
+            for product_id, item in available.items():
+                if Decimal(item["captured_kg"]) > Decimal(limits.get(product_id, "0")):
+                    raise ValueError(f'{item["image_name"]} already has {item["captured_kg"]} kg captured. Its allocation cannot be lower.')
+            if context["main_completed_at"] and not any(
+                Decimal(limit) > Decimal(available[product_id]["allocated_kg"] or "0")
+                for product_id, limit in limits.items()
+            ):
+                raise ValueError("Increase a material's allocated weight to reopen this melt, or mark it as completed.")
+        except (ValueError, TypeError) as error:
+            return jsonify({"error": str(error)}), 400
+        number = context["melt_number"]
+        connection.execute("""
+            INSERT INTO melt_material_allocations (furnace_id,melt_number,melt_serial,updated_at) VALUES (?,?,?,?)
+            ON CONFLICT(furnace_id,melt_number) DO UPDATE SET updated_at=excluded.updated_at, main_completed_at=NULL
+        """, (furnace_id, number, context["melt_serial"], datetime.now().astimezone().isoformat(timespec="seconds")))
+        if context["main_completed_at"]:
+            connection.execute(
+                "UPDATE weight_captures SET melt_completed_at=NULL WHERE furnace_id=? AND melt_number=?",
+                (str(furnace_id), number),
+            )
+        connection.execute("DELETE FROM melt_material_limits WHERE furnace_id=? AND melt_number=?", (furnace_id, number))
+        connection.executemany(
+            "INSERT INTO melt_material_limits (furnace_id,melt_number,product_image_id,allocated_kg) VALUES (?,?,?,?)",
+            [(furnace_id, number, product_id, limit) for product_id, limit in limits.items()],
+        )
+        result = allocation_context(connection, furnace)
+    record_changes("melt_material_allocations", f"{furnace_id}:{number}", "update",
+                   {str(item["id"]): item["allocated_kg"] for item in context["materials"]},
+                   {str(item["id"]): item["allocated_kg"] for item in result["materials"]})
+    return jsonify({"ok": True, **result})
+
+
+@main_bp.post("/api/material-allocations/<int:furnace_id>/continue")
+def continue_material_allocation(furnace_id):
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "Select the melt to continue"}), 400
+    with database_connection() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        furnace = connection.execute(
+            "SELECT id,image_name,melt_start_serial FROM product_images WHERE id=? AND image_type='furnace'",
+            (furnace_id,),
+        ).fetchone()
+        if furnace is None:
+            return jsonify({"error": "Furnace not found"}), 404
+        context = allocation_context(connection, furnace)
+        if (payload.get("melt_number") != context["melt_number"] or not context["main_completed_at"]
+                or payload.get("main_completed_at") != context["main_completed_at"]):
+            return jsonify({"error": "The melt has changed. Reload its allocation before continuing."}), 409
+        number = context["melt_number"]
+        connection.execute("""UPDATE melt_material_allocations SET main_completed_at=NULL,updated_at=?
+            WHERE furnace_id=? AND melt_number=? AND completed_at IS NULL""",
+            (datetime.now().astimezone().isoformat(timespec="milliseconds"), furnace_id, number))
+        connection.execute("UPDATE weight_captures SET melt_completed_at=NULL WHERE furnace_id=? AND melt_number=?",
+                           (str(furnace_id), number))
+        result = allocation_context(connection, furnace)
+    record_changes("melt_material_allocations", f"{furnace_id}:{number}", "continue",
+                   {"main_completed_at": context["main_completed_at"]}, {"main_completed_at": None})
+    return jsonify({"ok": True, **result})
+
+
+@main_bp.post("/api/material-allocations/<int:furnace_id>/complete")
+def complete_material_allocation(furnace_id):
+    payload = request.get_json(silent=True) or {}
+    with database_connection() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        furnace = connection.execute(
+            "SELECT id,image_name,melt_start_serial FROM product_images WHERE id=? AND image_type='furnace'",
+            (furnace_id,),
+        ).fetchone()
+        if furnace is None:
+            return jsonify({"error": "Furnace not found"}), 404
+        context = allocation_context(connection, furnace)
+        if payload.get("melt_number") != context["melt_number"] or not context["main_completed_at"]:
+            return jsonify({"error": "Complete this melt on the Main Screen before verifying it."}), 409
+        if payload.get("main_completed_at") != context["main_completed_at"]:
+            return jsonify({"error": "The melt has changed. Reload its allocation before verifying."}), 409
+        completed_at = datetime.now().astimezone().isoformat(timespec="milliseconds")
+        connection.execute(
+            "UPDATE melt_material_allocations SET completed_at=?,updated_at=? WHERE furnace_id=? AND melt_number=?",
+            (completed_at, completed_at, furnace_id, context["melt_number"]),
+        )
+        result = allocation_context(connection, furnace)
+    record_changes("melt_material_allocations", f'{furnace_id}:{context["melt_number"]}', "complete",
+                   {"completed_at": None}, {"completed_at": completed_at})
+    return jsonify({"ok": True, "completed_melt_number": context["melt_number"], **result})
+
 @main_bp.post("/api/weight-captures")
 def create_weight_capture():
     payload = request.get_json(silent=True) or {}; weight = str(payload.get("weight", "")).strip()
@@ -246,11 +410,18 @@ def create_weight_capture():
         if furnace is None: return jsonify({"ok": False, "error": "The selected furnace no longer exists"}),404
         image = connection.execute("SELECT id,image_name,image_url FROM product_images WHERE id=? AND image_type='product' AND furnace_id=?", (image_id,furnace_id)).fetchone()
         if image is None: return jsonify({"ok": False, "error": "The selected product image no longer exists"}), 404
+        context = allocation_context(connection, {"id": furnace_id, "image_name": furnace["name"],
+                                                  "melt_start_serial": furnace["melt_start_serial"]})
+        if not context["configured"]:
+            return jsonify({"ok": False, "code": "allocation_required", "error":
+                "Save Melt Material Allocation for this furnace and melt before capturing weight. Contact admin."}), 409
+        if context["main_completed_at"]:
+            return jsonify({"ok": False, "code": "allocation_required", "error":
+                f'Melt {context["melt_number"]} is awaiting allocation verification. Contact admin.'}), 409
         melt_number = str(payload.get("melt_number", "")).strip().upper()
         try: melt_serial = int(payload.get("melt_serial")) if payload.get("melt_serial") not in (None, "") else None
         except (TypeError, ValueError): melt_serial = None
         active = unfinished_melt(connection, furnace_id)
-        prefix = furnace_prefix(furnace["name"])
         if active:
             if (melt_number and melt_number != active["melt_number"]) or (melt_serial is not None and melt_serial != active["melt_serial"]):
                 return jsonify({"ok": False, "error": "The active melt has changed. Reload the Main Screen to continue."}), 409
@@ -258,8 +429,29 @@ def create_weight_capture():
         elif melt_number or melt_serial is not None:
             return jsonify({"ok": False, "error": "This melt is no longer open. Reload the Main Screen before capturing."}), 409
         else:
-            melt_serial, _ = next_melt_serial(connection, furnace_id, furnace["melt_start_serial"])
-            melt_number = f"{prefix}{melt_serial}"
+            melt_serial, melt_number = context["melt_serial"], context["melt_number"]
+        allocation = connection.execute(
+            "SELECT 1 FROM melt_material_allocations WHERE furnace_id=? AND melt_number=?",
+            (furnace_id, melt_number),
+        ).fetchone()
+        if allocation:
+            material = connection.execute(
+                "SELECT allocated_kg FROM melt_material_limits WHERE furnace_id=? AND melt_number=? AND product_image_id=?",
+                (furnace_id, melt_number, image_id),
+            ).fetchone()
+            if material is None:
+                return jsonify({"ok": False, "code": "allocation_exceeded", "error":
+                    f'{image["image_name"]} is not allocated to melt {melt_number}. Contact admin.'}), 409
+            rows = connection.execute(
+                "SELECT weight FROM weight_captures WHERE furnace_id=? AND melt_number=? AND product_image_id=?",
+                (str(furnace_id), melt_number, image_id),
+            ).fetchall()
+            material_total = sum((weight_amount(row["weight"]) or Decimal(0) for row in rows), Decimal(0))
+            limit = Decimal(material["allocated_kg"])
+            if material_total + amount > limit:
+                return jsonify({"ok": False, "code": "allocation_exceeded", "error":
+                    f'{image["image_name"]} in melt {melt_number} would total {material_total + amount} kg, '
+                    f'above its allocated {limit} kg. Contact admin.'}), 409
         settings = connection.execute(
             "SELECT individual_threshold_kg, melt_threshold_kg FROM melt_threshold_settings WHERE id=1"
         ).fetchone()
@@ -314,6 +506,10 @@ def complete_melt():
             (completed_at, str(furnace_id), melt_number),
         )
         total_weight = sum(numeric_weight(row["weight"]) for row in rows)
+        connection.execute(
+            "UPDATE melt_material_allocations SET main_completed_at=?,updated_at=? WHERE furnace_id=? AND melt_number=? AND completed_at IS NULL",
+            (completed_at, completed_at, furnace_id, melt_number),
+        )
     return jsonify({"ok": True, "melt_number": melt_number, "melt_count": len(rows), "melt_total_weight": total_weight, "melt_completed_at": completed_at})
 
 @main_bp.post("/api/weight-captures/<int:capture_id>/cancel")

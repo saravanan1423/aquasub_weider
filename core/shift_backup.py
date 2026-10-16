@@ -1,10 +1,11 @@
+import calendar
 import json
 import threading
 import uuid
 from datetime import datetime, time, timedelta, timezone
 
 from core.database import database_connection
-from core.usb_backup import backup_shift_reports, mounted_usb_drives
+from core.usb_backup import backup_shift_reports, mounted_usb_drives, save_local_reports
 
 
 def ended_shift_windows(shifts, since, now):
@@ -20,18 +21,47 @@ def ended_shift_windows(shifts, since, now):
         day += timedelta(days=1)
 
 
-def shift_reports(shift, starts, ends, now):
+def scheduled_windows(settings, shifts, since, now):
+    if not settings["enabled"]:
+        return
+    if settings["frequency"] == "shift":
+        yield from ended_shift_windows(shifts, since, now)
+        return
+    backup_time=time.fromisoformat(settings["backup_time"])
+    if settings["frequency"] == "daily":
+        day=since.date()
+        while day <= now.date():
+            ends=datetime.combine(day, backup_time, tzinfo=now.tzinfo)
+            if since <= ends <= now:
+                yield {"id":0, "name":"Daily"}, ends-timedelta(days=1), ends
+            day += timedelta(days=1)
+        return
+    def boundary(year, month):
+        day=min(settings["month_day"], calendar.monthrange(year, month)[1])
+        return datetime(year, month, day, backup_time.hour, backup_time.minute, tzinfo=now.tzinfo)
+    month_index=since.year*12+since.month-1
+    while month_index <= now.year*12+now.month-1:
+        year, month=divmod(month_index, 12)
+        ends=boundary(year, month+1)
+        previous_year, previous_month=divmod(month_index-1, 12)
+        if since <= ends <= now:
+            yield {"id":-1, "name":"Monthly"}, boundary(previous_year, previous_month+1), ends
+        month_index += 1
+
+
+def shift_reports(shift, starts, ends, now, *, assign_shift=True):
     from logs.routes import build_capture_report
     params={"shift":"all", "furnace":"all", "custom_time":"1",
             "from_date":starts.date().isoformat(), "to_date":ends.date().isoformat(),
             "start_time":starts.strftime("%H:%M"), "end_time":ends.strftime("%H:%M")}
     reports={}
     for report_type in ("melt", "individual"):
-        report=build_capture_report({**params, "report_type":report_type}, "Automatic shift backup", end_exclusive=True)
-        report["shift"]=shift["name"]
+        report=build_capture_report({**params, "report_type":report_type}, "Automatic backup", end_exclusive=True)
+        report["shift"]=shift["name"] if assign_shift else "All shifts"
         report["generated_on"]=now.isoformat(timespec="seconds")
-        for item in report["items"]:
-            item["shift_type"]=shift["name"]
+        if assign_shift:
+            for item in report["items"]:
+                item["shift_type"]=shift["name"]
         reports[report_type]=report
     return reports
 
@@ -51,49 +81,62 @@ class ShiftBackupWorker:
             if now < since:
                 return
             shifts=connection.execute("SELECT id,name,start_time,end_time FROM shifts ORDER BY id").fetchall()
-            for shift, starts, ends in ended_shift_windows(shifts, since, now):
+            settings=connection.execute("SELECT * FROM backup_settings WHERE id=1").fetchone()
+            for shift, starts, ends in scheduled_windows(settings, shifts, since, now):
                 exists=connection.execute("SELECT 1 FROM automatic_backup_jobs WHERE shift_id=? AND starts_at=? AND ends_at=?", (shift["id"], starts.isoformat(), ends.isoformat())).fetchone()
                 if exists:
                     continue
-                reports=shift_reports(shift, starts, ends, now)
+                reports=shift_reports(shift, starts, ends, now, assign_shift=settings["frequency"] == "shift")
+                for report in reports.values():
+                    report["backup_schedule"]=settings["frequency"]
                 connection.execute("""INSERT INTO automatic_backup_jobs
-                    (job_key,shift_id,shift_name,starts_at,ends_at,reports_json)
-                    VALUES (?,?,?,?,?,?)""", (uuid.uuid4().hex, shift["id"], shift["name"], starts.isoformat(), ends.isoformat(), json.dumps(reports)))
+                    (job_key,shift_id,shift_name,starts_at,ends_at,reports_json,schedule_type)
+                    VALUES (?,?,?,?,?,?,?)""", (uuid.uuid4().hex, shift["id"], shift["name"], starts.isoformat(), ends.isoformat(), json.dumps(reports), settings["frequency"]))
             connection.execute("""INSERT INTO automatic_backup_state (id,started_at,last_checked_at)
                 VALUES (1,?,?) ON CONFLICT(id) DO UPDATE SET last_checked_at=excluded.last_checked_at""",
                 (now.isoformat(), now.isoformat()))
 
     def process_pending(self, now):
         drives=sorted(mounted_usb_drives(), key=lambda drive:(-drive["free_bytes"], drive["id"]))
-        if not drives:
-            return
         cutoff=now.astimezone(timezone.utc).isoformat()
         with database_connection() as connection:
             jobs=connection.execute("""SELECT * FROM automatic_backup_jobs
-                WHERE status='pending' OR (status='processing' AND lease_until<?)
-                ORDER BY ends_at,id LIMIT 3""", (cutoff,)).fetchall()
+                WHERE (status='pending' AND (local_saved_at IS NULL OR ?))
+                   OR (status='processing' AND lease_until<?)
+                ORDER BY ends_at,id LIMIT 3""", (bool(drives), cutoff)).fetchall()
         for job in jobs:
             token=uuid.uuid4().hex
             lease=(now.astimezone(timezone.utc) + timedelta(minutes=5)).isoformat()
             with database_connection() as connection:
                 claimed=connection.execute("""UPDATE automatic_backup_jobs
-                    SET status='processing',lock_token=?,lease_until=?,attempts=attempts+1
+                    SET status='processing',lock_token=?,lease_until=?
                     WHERE id=? AND (status='pending' OR (status='processing' AND lease_until<?))""",
                     (token, lease, job["id"], cutoff)).rowcount
             if not claimed:
                 continue
             result=None
             last_error=""
+            local_ready=False
             try:
                 reports=json.loads(job["reports_json"])
+                local_folder=save_local_reports(reports, job["job_key"])
+                local_ready=True
+                with database_connection() as connection:
+                    connection.execute("""UPDATE automatic_backup_jobs SET local_folder=?,local_saved_at=COALESCE(local_saved_at,?)
+                        WHERE id=? AND lock_token=?""", (local_folder,now.isoformat(),job["id"],token))
+                    if drives:
+                        connection.execute("UPDATE automatic_backup_jobs SET attempts=attempts+1 WHERE id=? AND lock_token=?", (job["id"],token))
                 for drive in drives:
                     try:
-                        result=backup_shift_reports(reports, drive["id"], job["job_key"])
+                        result=backup_shift_reports(reports, drive["id"], job["job_key"], local_folder)
                         break
                     except Exception as error:
                         last_error=str(error)[:500] or "USB report backup failed"
             except Exception as error:
-                last_error=str(error)[:500] or "Could not read the pending shift report"
+                last_error=str(error)[:500] or "Could not save the local report"
+                if not local_ready:
+                    with database_connection() as connection:
+                        connection.execute("UPDATE automatic_backup_jobs SET local_saved_at=NULL WHERE id=? AND lock_token=?", (job["id"],token))
             with database_connection() as connection:
                 if result:
                     connection.execute("""UPDATE automatic_backup_jobs
@@ -118,7 +161,7 @@ class ShiftBackupWorker:
             try:
                 self.tick()
             except Exception:
-                self.app.logger.exception("Automatic shift backup check failed; it will retry")
+                self.app.logger.exception("Automatic backup check failed; it will retry")
             self.stopping.wait(self.interval)
 
     def start(self):
@@ -149,7 +192,9 @@ def backup_status():
         latest=connection.execute("SELECT shift_name,ends_at,completed_at,drive FROM automatic_backup_jobs WHERE status='completed' ORDER BY completed_at DESC,id DESC LIMIT 1").fetchone()
         error=connection.execute("SELECT last_error FROM automatic_backup_jobs WHERE status='pending' AND last_error!='' ORDER BY id DESC LIMIT 1").fetchone()
         state=connection.execute("SELECT started_at,last_checked_at FROM automatic_backup_state WHERE id=1").fetchone()
+        settings=connection.execute("SELECT enabled,frequency,backup_time,month_day FROM backup_settings WHERE id=1").fetchone()
+        local_pending=connection.execute("SELECT count(*) FROM automatic_backup_jobs WHERE status='pending' AND local_saved_at IS NOT NULL").fetchone()[0]
     totals={row["status"]:row["total"] for row in counts}
     return {"pending":totals.get("pending", 0), "processing":totals.get("processing", 0),
             "last_completed":dict(latest) if latest else None, "last_error":error["last_error"] if error else "",
-            "monitoring":dict(state) if state else None}
+            "monitoring":dict(state) if state else None, "settings":dict(settings), "local_pending":local_pending}
