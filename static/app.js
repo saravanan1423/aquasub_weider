@@ -140,6 +140,8 @@ function redraw() {
 async function poll() {
   try {
     const data = await jsonFetch(`/api/data?after=${state.lastId}`);
+    window.ScaleStatus.publish(data);
+    pollIntervalMs=Number(data.refresh_interval_ms)||pollIntervalMs;
     updateStatus(data);
     if (data.frames.length) {
       data.frames.forEach(frame => {
@@ -166,12 +168,15 @@ async function poll() {
       state.rawStream = "";
     }
   } catch (error) {
-    updateStatus({connected:false, connecting:false, scale_connected:false});
-    $("live-weight").textContent = "------";
+    window.ScaleStatus.reportError(error);
     showError(error.message);
   }
   setTimeout(poll, pollIntervalMs);
 }
+window.ScaleStatus.subscribe(data=>{
+  updateStatus(data);
+  $("live-weight").textContent=data.scale_connected ? data.weight : "------";
+});
 
 $("connect").addEventListener("click", async () => {
   showError();

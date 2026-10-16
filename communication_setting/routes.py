@@ -32,6 +32,7 @@ def save_settings(config):
         before = {field: existing[field] for field in tracked} if existing else {}
         connection.execute("""INSERT INTO serial_settings (id,port,baud_rate,data_bits,parity,stop_bits,start_marker,end_marker,start_address,end_address,frame_timeout,refresh_interval_ms,frame_gap_ms,created_by,updated_at) VALUES (1,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET port=excluded.port,baud_rate=excluded.baud_rate,data_bits=excluded.data_bits,parity=excluded.parity,stop_bits=excluded.stop_bits,start_marker=excluded.start_marker,end_marker=excluded.end_marker,start_address=excluded.start_address,end_address=excluded.end_address,frame_timeout=excluded.frame_timeout,refresh_interval_ms=excluded.refresh_interval_ms,frame_gap_ms=excluded.frame_gap_ms,created_by=excluded.created_by,updated_at=excluded.updated_at""", (config["port"],config["baud_rate"],config["data_bits"],config["parity"],config["stop_bits"],config["start_marker"],config["end_marker"],config["start_address"],config["end_address"],config["frame_timeout"],config["refresh_interval_ms"],config["frame_gap_ms"],session["username"],datetime.now().astimezone().isoformat(timespec="seconds")))
     after = {field: (session["username"] if field == "created_by" else config[field]) for field in tracked}
+    monitor.set_refresh_interval(config["refresh_interval_ms"])
     record_changes("communication_settings", 1, "update", before, after)
 
 
@@ -130,3 +131,20 @@ def data():
     try: after = max(int(request.args.get("after", 0)), 0)
     except ValueError: after = 0
     return jsonify(monitor.snapshot(after))
+
+
+@communication_bp.get("/api/scale-status")
+def scale_status():
+    response = jsonify(monitor.status_snapshot())
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+def start_saved_scale(app):
+    with app.app_context(), database_connection() as connection:
+        saved = connection.execute("SELECT * FROM serial_settings WHERE id=1").fetchone()
+    if saved is not None and not monitor.connected and not monitor.connecting:
+        try:
+            monitor.start(validated_config(dict(saved)))
+        except (TypeError, ValueError):
+            app.logger.exception("Could not start the scale with its saved settings")

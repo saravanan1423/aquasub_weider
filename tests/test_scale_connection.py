@@ -33,13 +33,32 @@ class ScaleConnectionTests(unittest.TestCase):
                 self.assertTrue(state["scale_connected"])
                 self.assertEqual(state["weight"], weight)
 
-    def test_invalid_selected_value_disconnects_without_reusing_old_value(self):
+    def test_invalid_value_holds_connection_until_timeout_but_blocks_capture(self):
         self.monitor._append(b"$00020]\r\n")
         self.monitor._append(b"$ERROR]\r\n")
+        self.assertTrue(self.monitor.snapshot()["scale_connected"])
+        self.assertEqual(self.monitor.snapshot()["weight"], "00020")
+        self.assertFalse(self.monitor.snapshot()["weight_stable"])
+        self.now += 2.1
         self.assertFalse(self.monitor.snapshot()["scale_connected"])
-        self.assertEqual(self.monitor.snapshot()["weight"], "")
         self.monitor._append(b"$00000]\r\n")
         self.assertTrue(self.monitor.snapshot()["scale_connected"])
+
+    def test_status_snapshot_has_no_raw_frames_or_serial_settings(self):
+        self.monitor._append(b"$00020]")
+        state = self.monitor.status_snapshot()
+        self.assertEqual(state["weight"], "00020")
+        self.assertNotIn("frames", state)
+        self.assertNotIn("config", state)
+        self.assertEqual(state["reading_age_seconds"], 0)
+
+    def test_refresh_interval_is_included_in_disconnect_timeout(self):
+        self.monitor.set_refresh_interval(2000)
+        self.monitor._append(b"$00020]")
+        self.now += 2.1
+        self.assertTrue(self.monitor.status_snapshot()["scale_connected"])
+        self.now += .2
+        self.assertFalse(self.monitor.status_snapshot()["scale_connected"])
 
     def test_silence_and_noise_expire_weight_and_fresh_reading_recovers(self):
         self.monitor._append(b"$00020]\r\n")

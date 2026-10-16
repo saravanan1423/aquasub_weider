@@ -46,6 +46,7 @@ def required_permissions():
     if path == "/api/settings": return {"communication"} if method == "POST" else {"main", "communication"}
     if path == "/api/shifts" or path.startswith("/api/shifts/"): return {"shifts"}
     if path == "/api/current-shift": return set()
+    if path == "/api/scale-status": return set()
     if path == "/api/melt-number-settings" or path.startswith("/api/melt-number-settings/"): return {"melts"}
     if path in {"/api/connect", "/api/data"}: return {"main", "communication"}
     if path in {"/api/ports", "/api/disconnect", "/api/clear"}: return {"communication"}

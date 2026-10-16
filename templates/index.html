@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Serial Raw Data Monitor</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='2') }}">
+  <style>.communication-page #status,.communication-page .weight-display { display:none; }.communication-page .weight-panel { grid-template-columns:minmax(0,1fr); }</style>
 </head>
 <body>
   {% include 'navigation.html' %}
@@ -51,7 +52,7 @@
       <div class="weight-config">
         <div>
           <p class="eyebrow">PARSED OUTPUT</p>
-          <h2>Live weight</h2>
+          <h2>Weight parsing</h2>
         </div>
         <div class="field"><label for="start-marker">Start character</label><input id="start-marker" value="$" maxlength="8"></div>
         <div class="field"><label for="end-marker">End character</label><input id="end-marker" value="]" maxlength="8"></div>
@@ -76,7 +77,7 @@
     <p class="footnote">Frames end at CR/LF; continuous and undelimited data is handled automatically.</p>
   </main>
   <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
-  <script src="{{ url_for('static', filename='app.js', v='4') }}"></script>
+  <script src="{{ url_for('static', filename='app.js', v='5') }}"></script>
   <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>

@@ -75,6 +75,8 @@ app = create_app()
 
 # Normal imports (including tests) do not start background database writers.
 if os.environ.get("FLASK_RUN_FROM_CLI") == "true":
+    from communication_setting.routes import start_saved_scale
+    start_saved_scale(app)
     from core.shift_backup import start_shift_backup_worker
     start_shift_backup_worker(app)
 
@@ -144,6 +146,8 @@ def open_fullscreen_browser(url, host, port):
 
 
 if __name__ == "__main__":
+    from communication_setting.routes import start_saved_scale
+    start_saved_scale(app)
     from core.shift_backup import start_shift_backup_worker
     start_shift_backup_worker(app)
     host = "127.0.0.1"

@@ -7,3 +7,4 @@
     <form class="logout-form" action="/logout" method="post"><button type="submit" title="Logout"><i class="ui-icon" style="--icon:url('/static/icons/log-out.svg')" aria-hidden="true"></i><b>Logout</b></button></form>
   </nav>
 </aside>
+{% if request.path in ['/', '/communication'] %}<script src="{{ url_for('static', filename='scale_status.js', v='2') }}" data-raw-scale-page="{{ 'true' if request.path == '/communication' else 'false' }}"></script>{% endif %}

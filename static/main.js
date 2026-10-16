@@ -1,5 +1,4 @@
 const $ = id => document.getElementById(id);
-let pollIntervalMs = 200;
 const mainState = {lastId: 0, settings: null, weight: "", weightStable: false, connectingAttempted: false, furnace: null, products: [], activeMelt: null, allocation: null, successSeconds: 10};
 const mainHeader = document.querySelector(".sidebar");
 mainHeader.id = "main-navigation";
@@ -70,24 +69,15 @@ function setStatus(connected, connecting = false, error = "") {
   status.querySelector("strong").textContent = connected ? "Scale connected" : connecting ? "Connecting…" : "Scale disconnected";
   const message = $("main-weight-message");
   message.hidden = true;
-  if (error) message.textContent = error;
+  message.textContent = error || "The scale is disconnected.";
 }
-async function pollScale() {
-  try {
-    const data = await requestJson(`/api/data?after=${mainState.lastId}`);
-    setStatus(data.scale_connected, false, data.error);
-    mainState.lastId = data.last_frame_id;
-    mainState.weight = data.scale_connected ? data.weight : "";
-    mainState.weightStable = Boolean(data.scale_connected && data.weight_stable);
-    $("main-live-weight").textContent = mainState.weight || "------";
-  } catch (error) {
-    mainState.weight = "";
-    mainState.weightStable = false;
-    $("main-live-weight").textContent = "------";
-    setStatus(false, false, error.message);
-  }
-  setTimeout(pollScale, pollIntervalMs);
-}
+window.ScaleStatus.subscribe(data => {
+  setStatus(data.scale_connected, data.connecting, data.error);
+  mainState.lastId = data.last_frame_id;
+  mainState.weight = data.scale_connected ? data.weight : "";
+  mainState.weightStable = Boolean(data.scale_connected && data.weight_stable);
+  $("main-live-weight").textContent = mainState.weight || "------";
+});
 async function loadProducts() {
   mainState.products = (await requestJson("/api/product-images")).filter(item => item.image_type === "product");
 }
@@ -352,10 +342,8 @@ async function initializeMain() {
     const displaySettings = await requestJson("/api/capture-display-settings").catch(() => ({success_display_seconds: 10}));
     mainState.successSeconds = displaySettings.success_display_seconds;
     if (!mainState.settings.id) throw new Error("Save communication settings before using the Main Screen");
-    pollIntervalMs = Number(mainState.settings.refresh_interval_ms) || 200;
     const status = await requestJson("/api/data?after=0");
     if (!status.connected && !status.connecting) await requestJson("/api/connect", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(mainState.settings)});
   } catch (error) { setStatus(false, false, error.message); }
-  pollScale();
 }
 initializeMain();

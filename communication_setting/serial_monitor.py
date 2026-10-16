@@ -73,14 +73,13 @@ class SerialMonitor:
                 if re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)", weight):
                     now = time.monotonic()
                     if (self._last_valid_weight_at is None
+                            or self._stable_since is None
                             or now - self._last_valid_weight_at >= self._reading_timeout()
                             or not self._weight or Decimal(weight) != Decimal(self._weight)):
                         self._stable_since = now
                     self._weight = weight
                     self._last_valid_weight_at = now
                 else:
-                    self._weight = ""
-                    self._last_valid_weight_at = None
                     self._stable_since = None
             stream = stream[end + len(end_marker):]
         self._weight_buffer = stream[-16384:]
@@ -122,22 +121,38 @@ class SerialMonitor:
             self._serial = None
 
     def _reading_timeout(self):
-        return max(2.0, self.config.get("frame_timeout", 1) + self.config.get("frame_gap", .25))
+        gap = self.config.get("frame_gap", .25)
+        return max(2.0, self.config.get("frame_timeout", 1) + gap,
+                   self.config.get("refresh_interval_ms", 200) / 1000 + gap)
 
     def snapshot(self, after=0):
+        return self._snapshot(after)
+
+    def status_snapshot(self):
+        return self._snapshot()
+
+    def set_refresh_interval(self, interval_ms):
+        with self._lock:
+            self.config["refresh_interval_ms"] = interval_ms
+
+    def _snapshot(self, after=None):
         with self._lock:
             timeout = self._reading_timeout()
+            age = time.monotonic() - self._last_valid_weight_at if self._last_valid_weight_at is not None else None
             scale_connected = (self.connected and self._last_valid_weight_at is not None
-                               and time.monotonic() - self._last_valid_weight_at < timeout)
+                               and age < timeout)
             # Require received readings spanning two seconds, not a single old sample.
             weight_stable = (scale_connected and self._stable_since is not None
                              and self._last_valid_weight_at - self._stable_since >= 2.0)
-            return {"connected": self.connected, "connecting": self.connecting,
+            result = {"connected": self.connected, "connecting": self.connecting,
                     "weight_stable": weight_stable,
                     "scale_connected": scale_connected, "weight": self._weight if scale_connected else "",
                     "last_frame_id": self._next_id - 1,
-                    "error": self.error, "config": self.config,
-                    "frames": [frame for frame in self._frames if frame["id"] > after]}
+                    "error": self.error, "reading_timeout_seconds": timeout, "reading_age_seconds": age,
+                    "refresh_interval_ms": self.config.get("refresh_interval_ms", 200)}
+            if after is not None:
+                result.update(config=dict(self.config), frames=[frame for frame in self._frames if frame["id"] > after])
+            return result
 
     def clear(self):
         with self._lock: self._frames.clear()
