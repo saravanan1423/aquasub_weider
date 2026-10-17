@@ -2,14 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Login · WeightFlow</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <title>Sign in | Aqua Group</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='3') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='branding.css', v='1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='branding.css', v='2') }}">
 </head>
 <body class="login-page">
-  <main class="login-card">
-    <div class="login-brand">{% include 'brand_logo.html' %}<div><strong>WeightFlow</strong><small>Operator console</small></div></div>
-    <div><p class="eyebrow">SECURE ACCESS</p><h1>Welcome back</h1><p class="subtitle">Sign in to continue to the weighing system.</p></div>
+  <main class="login-card" aria-label="Sign in">
+    <div class="login-brand">{% include 'brand_logo.html' %}</div>
     {% if error %}<div class="login-error">{{ error }}</div>{% endif %}
     <form method="post" class="login-form">
       <div class="field login-username-field"><label for="username">Username</label><input id="username" name="username" type="text" value="{{ selected_username }}" autocomplete="off" aria-autocomplete="list" aria-controls="username-suggestions" aria-expanded="false" required autofocus><div id="username-suggestions" class="username-suggestions" hidden>{% for username in usernames %}<button type="button" data-username="{{ username }}">{{ username }}</button>{% endfor %}</div></div>

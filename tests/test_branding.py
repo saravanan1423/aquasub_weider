@@ -25,6 +25,8 @@ class BrandingTests(unittest.TestCase):
                 self.assertNotIn(b'weider-logo.png',response.data)
         login=app.test_client().get('/login')
         self.assertIn(b'aqua-group-logo.png',login.data)
+        for text in (b'WeightFlow',b'Operator console',b'SECURE ACCESS',b'Welcome back',b'Sign in to continue'):
+            self.assertNotIn(text,login.data)
         self.assertEqual(login.data.count(b'/static/theme.css'),1)
         self.assertEqual(self.fixture.client.get('/static/aqua-group-logo.png').status_code,200)
 

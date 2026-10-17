@@ -1,6 +1,6 @@
 .aqua-group-logo { display:block; width:124px; height:41px; flex:none; object-fit:contain; }
 .sidebar .brand { gap:14px; }
-.login-brand { gap:18px; align-items:center; }
+.login-brand { justify-content:center; align-items:center; width:100%; padding:8px 0 14px; }
 .login-brand .aqua-group-logo { width:156px; height:52px; }
 .main-brand-context { display:flex; align-items:center; gap:10px; min-width:0; margin-right:auto; }
 .main-brand-context .aqua-group-logo,.allocation-toolbar .aqua-group-logo { width:96px; height:32px; }
