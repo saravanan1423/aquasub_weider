@@ -1,5 +1,5 @@
 <aside class="sidebar" id="main-navigation">
-  <a class="brand" href="{{ '/' if can_access('main') else '/settings' if can_access_settings else '/logs' }}"><span aria-hidden="true">W</span><strong>WeightFlow</strong></a>
+  <a class="brand" href="{{ '/' if can_access('main') else '/settings' if can_access_settings else '/logs' }}" aria-label="Aqua Group - WeightFlow">{% include 'brand_logo.html' %}<strong>WeightFlow</strong></a>
   <nav aria-label="Main navigation">
     {% if can_access('main') %}<a class="nav-link{{ ' active' if request.path == '/' else '' }}" href="/" title="Main Screen"><i class="ui-icon" style="--icon:url('/static/icons/house.svg')" aria-hidden="true"></i><b>Main Screen</b></a>{% endif %}
     {% if can_access('logs') %}<a class="nav-link{{ ' active' if request.path == '/logs' else '' }}" href="/logs" title="Logs"><i class="ui-icon" style="--icon:url('/static/icons/logs.svg')" aria-hidden="true"></i><b>Logs</b></a>{% endif %}
@@ -7,4 +7,5 @@
     <form class="logout-form" action="/logout" method="post"><button type="submit" title="Logout"><i class="ui-icon" style="--icon:url('/static/icons/log-out.svg')" aria-hidden="true"></i><b>Logout</b></button></form>
   </nav>
 </aside>
+<link rel="stylesheet" href="{{ url_for('static', filename='branding.css', v='1') }}">
 {% if request.path in ['/', '/communication'] %}<script src="{{ url_for('static', filename='scale_status.js', v='2') }}" data-raw-scale-page="{{ 'true' if request.path == '/communication' else 'false' }}"></script>{% endif %}

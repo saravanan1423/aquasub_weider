@@ -1,5 +1,6 @@
 import csv
 import io
+from pathlib import Path
 from html import escape
 
 
@@ -52,7 +53,7 @@ def report_pdf(report):
     from reportlab.platypus import LongTable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
     output = io.BytesIO()
-    document = SimpleDocTemplate(output, pagesize=landscape(A4), leftMargin=30, rightMargin=30, topMargin=32, bottomMargin=32)
+    document = SimpleDocTemplate(output, pagesize=landscape(A4), leftMargin=30, rightMargin=30, topMargin=80, bottomMargin=32)
     styles = getSampleStyleSheet()
     cell_style = styles["BodyText"].clone("ReportCell")
     cell_style.fontSize = 8
@@ -94,6 +95,9 @@ def report_pdf(report):
              Spacer(1, 12), Paragraph(escape(total), styles["Heading3"])]
 
     def footer(canvas, doc):
+        logo = Path(__file__).resolve().parents[1] / "static" / "aqua-group-logo.png"
+        canvas.drawImage(str(logo), 30, landscape(A4)[1] - 62, width=114, height=38,
+                         preserveAspectRatio=True, mask="auto")
         canvas.setFont("Helvetica", 8)
         canvas.setFillColor(colors.HexColor("#52665e"))
         canvas.drawRightString(landscape(A4)[0] - 30, 18, f"Page {doc.page}")

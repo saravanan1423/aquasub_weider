@@ -1,0 +1,37 @@
+.aqua-group-logo { display:block; width:124px; height:41px; flex:none; object-fit:contain; }
+.sidebar .brand { gap:14px; }
+.login-brand { gap:18px; align-items:center; }
+.login-brand .aqua-group-logo { width:156px; height:52px; }
+.main-brand-context { display:flex; align-items:center; gap:10px; min-width:0; margin-right:auto; }
+.main-brand-context .aqua-group-logo,.allocation-toolbar .aqua-group-logo { width:96px; height:32px; }
+.main-page.main-maximized .main-brand-context { grid-column:1; grid-row:1; padding-right:76px; }
+.main-brand-context .main-product-context { flex:1; min-width:0; }
+.allocation-toolbar .aqua-group-logo { margin-right:2px; }
+.allocation-toolbar h1 { font-size:19px; }
+@media(min-width:701px) and (max-height:600px) {
+  .login-page:not(:has(.screen-keyboard:not([hidden]))) .login-card { padding:18px 24px; gap:12px; }
+  .login-page:not(:has(.screen-keyboard:not([hidden]))) .login-form { gap:10px; }
+  .login-page:not(:has(.screen-keyboard:not([hidden]))) .login-form input { height:44px; min-height:44px; }
+  .login-page:not(:has(.screen-keyboard:not([hidden]))) .login-form .primary { height:44px; min-height:44px; margin-top:0; }
+}
+@media(max-width:1100px) {
+  .main-brand-context { gap:6px; }
+  .main-brand-context .aqua-group-logo { width:88px; height:30px; }
+  .main-brand-context .main-product-context h2 { display:none; }
+}
+@media(min-width:701px) and (max-width:1100px) {
+  .main-page.main-maximized .main-live-bar { grid-template-columns:minmax(0,1fr) auto auto; }
+  .main-page.main-maximized .main-brand-context { padding-right:0; }
+  .main-page.main-maximized .complete-melt-button:not([hidden]) { transform:none; animation:branding-complete-attention 2.8s ease-in-out infinite; }
+  .main-page.main-maximized .complete-melt-button:not([hidden]):hover { transform:translateY(-1px); animation:none; }
+}
+@keyframes branding-complete-attention { 0%,70%,100% { box-shadow:0 2px 5px #064e3b12; } 82% { box-shadow:0 0 0 3px #064e3b25,0 5px 12px #064e3b26; } }
+@media(prefers-reduced-motion:reduce) { .main-page.main-maximized .complete-melt-button:not([hidden]) { animation:none; } }
+@media(max-width:700px) {
+  .sidebar .aqua-group-logo { width:110px; height:37px; }
+  .main-page.main-maximized .main-brand-context { padding-right:0; }
+  .allocation-toolbar { flex-wrap:wrap; height:auto; min-height:54px; gap:6px; }
+  .allocation-toolbar h1 { font-size:17px; }
+  .login-brand { gap:12px; }
+  .login-brand .aqua-group-logo { width:124px; height:42px; }
+}
