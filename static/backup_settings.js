@@ -104,6 +104,7 @@ if (!historyOnly) {
     try {
       await api('/api/backup-settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:byId('backup-enabled').checked,frequency:byId('backup-frequency').value,backup_time:byId('backup-time').value,month_day:Number(byId('backup-month-day').value)})});
       message('Backup schedule saved.');
+      showBackupScheduleSuccess();
     } catch (error) { message(error.message,true); }
     finally { button.disabled=false; }
   });
@@ -112,3 +113,67 @@ byId('backup-history-refresh').addEventListener('click',loadHistory);
 byId('backup-history-previous').addEventListener('click',()=>{historyPage--;loadHistory();});
 byId('backup-history-next').addEventListener('click',()=>{historyPage++;loadHistory();});
 setInterval(()=>{if (!document.hidden && !byId('backup-history-panel').hidden) loadHistory();},15000);
+
+let backupSuccessTimer = null;
+function showBackupScheduleSuccess() {
+  const screen = byId('backup-success-screen');
+  if (!screen) return;
+  if (backupSuccessTimer) {
+    clearInterval(backupSuccessTimer);
+    backupSuccessTimer = null;
+  }
+
+  const freq = byId('backup-frequency').value;
+  const isEnabled = byId('backup-enabled').checked;
+  const summaryEl = byId('backup-success-summary');
+  if (summaryEl) {
+    summaryEl.textContent = !isEnabled 
+      ? 'Automatic backup disabled' 
+      : freq === 'shift' 
+        ? 'Automatic backup active: after every shift' 
+        : freq === 'daily' 
+          ? `Automatic backup active: daily at ${byId('backup-time').value}` 
+          : `Automatic backup active: monthly on day ${byId('backup-month-day').value} at ${byId('backup-time').value}`;
+  }
+
+  const timeEl = byId('backup-success-time');
+  if (timeEl) timeEl.textContent = new Date().toLocaleString();
+
+  const countdownEl = byId('backup-success-countdown');
+  if (countdownEl) countdownEl.textContent = "2";
+
+  screen.hidden = false;
+
+  const deadline = Date.now() + 2000;
+  backupSuccessTimer = setInterval(() => {
+    const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    if (countdownEl) countdownEl.textContent = remaining;
+    if (Date.now() >= deadline) {
+      clearInterval(backupSuccessTimer);
+      backupSuccessTimer = null;
+      screen.hidden = true;
+    }
+  }, 100);
+
+  screen.onclick = () => {
+    if (backupSuccessTimer) {
+      clearInterval(backupSuccessTimer);
+      backupSuccessTimer = null;
+    }
+    screen.hidden = true;
+  };
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    const screen = byId('backup-success-screen');
+    if (screen && !screen.hidden) {
+      if (backupSuccessTimer) {
+        clearInterval(backupSuccessTimer);
+        backupSuccessTimer = null;
+      }
+      screen.hidden = true;
+    }
+  }
+});
+

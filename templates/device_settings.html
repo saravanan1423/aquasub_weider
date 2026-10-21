@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Device Settings - WeightFlow</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='1') }}">
+  <title>Device Settings</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='1') }}">
 </head>
 <body>
   {% include 'navigation.html' %}
@@ -20,7 +20,6 @@
     </section>
     <div class="form-message" id="top-bar-message" role="status" aria-live="polite" hidden></div>
   </main>
-  <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
   <script src="{{ url_for('static', filename='device_settings.js', v='8') }}"></script>
   <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="true"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>

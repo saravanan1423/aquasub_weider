@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>System Settings - WeightFlow</title>
+  <title>System Settings</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='3') }}">
 </head>
@@ -19,10 +19,10 @@
       {% endif %}
       {% endfor %}
       {% if is_admin %}<button class="settings-tile" type="button" data-rustdesk-launch title="Open RustDesk on this device"><span class="settings-tile-icon"><i class="ui-icon" style="--icon:url('/static/icons/life-buoy.svg')" aria-hidden="true"></i></span><strong>Remote Support</strong><i class="ui-icon tile-arrow" style="--icon:url('/static/icons/chevron-right.svg')" aria-hidden="true"></i></button>{% endif %}
+      <a class="settings-tile" href="/contact-us"><span class="settings-tile-icon"><i class="ui-icon" style="--icon:url('/static/icons/info.svg')" aria-hidden="true"></i></span><strong>Contact Us</strong><i class="ui-icon tile-arrow" style="--icon:url('/static/icons/chevron-right.svg')" aria-hidden="true"></i></a>
     </div>
     <div class="form-message" id="rustdesk-status" role="status" aria-live="polite" hidden></div>
   </main>
-  <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
   <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>

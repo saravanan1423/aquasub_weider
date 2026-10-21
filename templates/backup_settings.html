@@ -1,43 +1,97 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Backup Settings - WeightFlow</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Backup Settings</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='16') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='backup_settings.css', v='1') }}">
 </head>
+
 <body>
   {% include 'navigation.html' %}
   <main class="shell with-sidebar backup-settings-page" data-history-only="{{ 'true' if history_only else 'false' }}">
-    <header class="backup-settings-heading"><h1>{{ 'Backup History' if history_only else 'Backup Settings' }}</h1><a class="settings-back" href="{{ ('/logs' if can_access('logs') else '/backup-settings') if history_only else '/settings' }}"><i class="ui-icon" style="--icon:url('/static/icons/arrow-left.svg')" aria-hidden="true"></i>Back</a></header>
+    <header class="backup-settings-heading"><a class="settings-back"
+        href="{{ ('/logs' if can_access('logs') else '/backup-settings') if history_only else '/settings' }}"><i
+          class="ui-icon" style="--icon:url('/static/icons/arrow-left.svg')" aria-hidden="true"></i>Back</a></header>
     {% if not history_only %}
     <div class="backup-view-tabs" role="tablist" aria-label="Backup views">
-      <button id="backup-schedule-tab" type="button" role="tab" aria-selected="true" aria-controls="backup-schedule-panel">Schedule</button>
-      <button id="backup-history-tab" type="button" role="tab" aria-selected="false" aria-controls="backup-history-panel" tabindex="-1">Backup log</button>
+      <button id="backup-schedule-tab" type="button" role="tab" aria-selected="true"
+        aria-controls="backup-schedule-panel">Schedule</button>
+      <button id="backup-history-tab" type="button" role="tab" aria-selected="false"
+        aria-controls="backup-history-panel" tabindex="-1">Backup log</button>
     </div>
     <section id="backup-schedule-panel" role="tabpanel" aria-labelledby="backup-schedule-tab">
       <form id="backup-settings-form" class="backup-schedule-form">
         <label class="backup-enabled"><input id="backup-enabled" type="checkbox">Automatic report backup</label>
-        <div class="field"><label for="backup-frequency">Backup schedule</label><select id="backup-frequency"><option value="shift">After every shift</option><option value="daily">Daily</option><option value="monthly">Monthly</option></select></div>
-        <div class="field" id="backup-time-field" hidden><label for="backup-time">Backup time</label><input id="backup-time" type="time" value="00:00" required></div>
-        <div class="field" id="backup-month-field" hidden><label for="backup-month-day">Day of month</label><select id="backup-month-day">{% for day in range(1,32) %}<option value="{{ day }}">{{ day }}</option>{% endfor %}</select></div>
-        <div class="backup-schedule-result"><span>storage/reports</span><strong>Melt summary &amp; individual captures</strong><span>2 CSV + 2 PDF</span></div>
+        <div class="field"><label for="backup-frequency">Backup schedule</label><select id="backup-frequency">
+            <option value="shift">After every shift</option>
+            <option value="daily">Daily</option>
+            <option value="monthly">Monthly</option>
+          </select></div>
+        <div class="field" id="backup-time-field" hidden><label for="backup-time">Backup time</label><input
+            id="backup-time" type="time" value="00:00" required></div>
+        <div class="field" id="backup-month-field" hidden><label for="backup-month-day">Day of month</label><select
+            id="backup-month-day">{% for day in range(1,32) %}<option value="{{ day }}">{{ day }}</option>{% endfor
+            %}</select></div>
+        <div class="backup-schedule-result"><span>storage/reports</span><strong>Melt summary &amp; individual
+            captures</strong><span>2 CSV + 2 PDF</span></div>
         <div id="backup-schedule-summary" role="status"></div>
-        <div class="backup-save-row"><button class="primary" id="backup-settings-save" type="submit" disabled><i class="ui-icon" style="--icon:url('/static/icons/save.svg')" aria-hidden="true"></i>Save schedule</button></div>
+        <div class="backup-save-row"><button class="primary" id="backup-settings-save" type="submit" disabled><i
+              class="ui-icon" style="--icon:url('/static/icons/save.svg')" aria-hidden="true"></i>Save schedule</button>
+        </div>
       </form>
     </section>
     {% endif %}
-    <section id="backup-history-panel" {% if not history_only %}role="tabpanel" aria-labelledby="backup-history-tab" hidden{% endif %}>
-      <div class="backup-history-heading"><span id="backup-history-count">Loading backups...</span><button type="button" id="backup-history-refresh" class="ghost" title="Refresh backup log" aria-label="Refresh backup log"><i class="ui-icon" style="--icon:url('/static/icons/refresh-cw.svg')" aria-hidden="true"></i></button></div>
-      <div class="backup-history-scroll"><table class="backup-history-table"><thead><tr><th>Schedule / period</th><th>Status</th><th>USB / result</th></tr></thead><tbody id="backup-history-body"></tbody></table></div>
-      <div class="backup-history-pagination"><button class="ghost" id="backup-history-previous" type="button" aria-label="Previous page"><i class="ui-icon" style="--icon:url('/static/icons/arrow-left.svg')" aria-hidden="true"></i></button><span id="backup-history-page"></span><button class="ghost" id="backup-history-next" type="button" aria-label="Next page"><i class="ui-icon" style="--icon:url('/static/icons/chevron-right.svg')" aria-hidden="true"></i></button></div>
+    <section id="backup-history-panel" {% if not history_only %}role="tabpanel" aria-labelledby="backup-history-tab"
+      hidden{% endif %}>
+      <div class="backup-history-heading"><span id="backup-history-count">Loading backups...</span><button type="button"
+          id="backup-history-refresh" class="ghost" title="Refresh backup log" aria-label="Refresh backup log"><i
+            class="ui-icon" style="--icon:url('/static/icons/refresh-cw.svg')" aria-hidden="true"></i></button></div>
+      <div class="backup-history-scroll">
+        <table class="backup-history-table">
+          <thead>
+            <tr>
+              <th>Schedule / period</th>
+              <th>Status</th>
+              <th>USB / result</th>
+            </tr>
+          </thead>
+          <tbody id="backup-history-body"></tbody>
+        </table>
+      </div>
+      <div class="backup-history-pagination"><button class="ghost" id="backup-history-previous" type="button"
+          aria-label="Previous page"><i class="ui-icon" style="--icon:url('/static/icons/arrow-left.svg')"
+            aria-hidden="true"></i></button><span id="backup-history-page"></span><button class="ghost"
+          id="backup-history-next" type="button" aria-label="Next page"><i class="ui-icon"
+            style="--icon:url('/static/icons/chevron-right.svg')" aria-hidden="true"></i></button></div>
     </section>
     <div id="backup-settings-message" class="form-message" role="status" hidden></div>
   </main>
-  <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
-  <script src="{{ url_for('static', filename='backup_settings.js', v='2') }}"></script>
-  <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
+  <div class="capture-success-screen backup-success-screen" id="backup-success-screen" hidden>
+    <div class="backup-success-details">
+      <div class="success-check">✓</div>
+      <p class="backup-success-eyebrow">BACKUP SETTINGS SAVED</p>
+      <h2 id="backup-success-title">Schedule Updated</h2>
+      <div class="backup-success-drive-pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" aria-hidden="true">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/>
+          <polyline points="7 3 7 8 15 8"/>
+        </svg>
+        <strong id="backup-success-drive">Automatic Report Backup</strong>
+      </div>
+      <div class="backup-success-summary-line" id="backup-success-summary">Automatic report backup schedule saved</div>
+      <time id="backup-success-time">—</time>
+      <small class="backup-countdown-notice">Closing in <strong id="backup-success-countdown">2</strong> seconds</small>
+    </div>
+  </div>
+  <script src="{{ url_for('static', filename='backup_settings.js', v='3') }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}"
+    data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js', v='3') }}"></script>
 </body>
+
 </html>

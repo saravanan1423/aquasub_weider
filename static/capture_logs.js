@@ -204,6 +204,10 @@ document.getElementById("report-form").addEventListener("submit", async event =>
       const summary=data.total_melts === 0 ? "No data: 2 empty CSVs and 2 PDFs saved"
         : `${data.total_melts} melts, ${data.total_products} captures saved as 2 CSVs and 2 PDFs`;
       backupStatus(`${summary} to ${data.drive} / Weider Reports`);
+      try { reportDialog.close(); } catch (_) {}
+      showBackupSuccessScreen(data);
+      refreshUsbDrives().catch(() => {});
+      loadAutomaticBackupStatus().catch(() => {});
     } else {
       renderReport(data);
       await showReportQr();
@@ -253,3 +257,78 @@ async function loadAutomaticBackupStatus() {
 }
 loadAutomaticBackupStatus();
 setInterval(()=>{ if (!document.hidden) loadAutomaticBackupStatus(); }, 15000);
+
+
+let backupSuccessTimer = null;
+function showBackupSuccessScreen(data) {
+  const screen = document.getElementById("backup-success-screen");
+  if (!screen) return;
+  if (backupSuccessTimer) {
+    clearInterval(backupSuccessTimer);
+    backupSuccessTimer = null;
+  }
+
+  const driveEl = document.getElementById("backup-success-drive");
+  if (driveEl) {
+    driveEl.textContent = `${data.drive || "USB Drive"} / Weider Reports`;
+  }
+
+  const summaryEl = document.getElementById("backup-success-summary");
+  if (summaryEl) {
+    summaryEl.textContent = data.total_melts === 0
+      ? "No data for selected range: 2 empty CSVs and 2 PDFs saved to USB"
+      : `${data.total_melts} melts, ${data.total_products} captures saved to USB as 2 CSVs & 2 PDFs`;
+  }
+
+  const meltsEl = document.getElementById("backup-success-melts");
+  if (meltsEl) meltsEl.textContent = data.total_melts ?? 0;
+
+  const capturesEl = document.getElementById("backup-success-captures");
+  if (capturesEl) capturesEl.textContent = data.total_products ?? 0;
+
+  const weightEl = document.getElementById("backup-success-weight");
+  if (weightEl) {
+    const totalWeight = Number(data.total_weight ?? 0);
+    weightEl.innerHTML = `${totalWeight.toFixed(3)} <small style="font-size:13px;color:#9ca3af;font-weight:600;">kg</small>`;
+  }
+
+  const timeEl = document.getElementById("backup-success-time");
+  if (timeEl) timeEl.textContent = new Date().toLocaleString();
+
+  const countdownEl = document.getElementById("backup-success-countdown");
+  if (countdownEl) countdownEl.textContent = "2";
+
+  screen.hidden = false;
+
+  const deadline = Date.now() + 2000;
+  backupSuccessTimer = setInterval(() => {
+    const secondsRemaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    if (countdownEl) countdownEl.textContent = secondsRemaining;
+    if (Date.now() >= deadline) {
+      clearInterval(backupSuccessTimer);
+      backupSuccessTimer = null;
+      screen.hidden = true;
+    }
+  }, 100);
+
+  screen.onclick = () => {
+    if (backupSuccessTimer) {
+      clearInterval(backupSuccessTimer);
+      backupSuccessTimer = null;
+    }
+    screen.hidden = true;
+  };
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    const screen = document.getElementById("backup-success-screen");
+    if (screen && !screen.hidden) {
+      if (backupSuccessTimer) {
+        clearInterval(backupSuccessTimer);
+        backupSuccessTimer = null;
+      }
+      screen.hidden = true;
+    }
+  }
+});

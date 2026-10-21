@@ -20,6 +20,9 @@ def melt_settings_page(): return render_template("melt_number_settings.html")
 @main_bp.get("/material-allocation")
 def material_allocation_page(): return render_template("material_allocation.html")
 
+@main_bp.get("/contact-us")
+def contact_us_page(): return render_template("contact_us.html")
+
 @main_bp.get("/api/furnaces")
 def furnaces():
     with database_connection() as connection:

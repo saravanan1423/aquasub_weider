@@ -1,18 +1,45 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Capture Logs</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='1') }}">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capture Logs</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='1') }}">
 </head>
+
 <body>
   {% include 'navigation.html' %}
   <main class="shell with-sidebar logs-screen">
-    <div class="logs-heading"><div><p class="eyebrow">CAPTURE HISTORY</p><h1>Melt Logs</h1></div><div class="logs-heading-actions">{% if can_access_settings %}<a class="settings-back" href="/settings"><i class="ui-icon" style="--icon:url('/static/icons/arrow-left.svg')" aria-hidden="true"></i>Back</a>{% endif %}<button class="primary" id="open-report" type="button">Generate report</button><div class="log-count"><span>Total melts</span><strong id="log-count">0</strong></div></div></div>
+    <div class="logs-heading">
+      <div></div>
+      <div class="logs-heading-actions">{% if can_access_settings %}<a class="settings-back" href="/settings"><i
+            class="ui-icon" style="--icon:url('/static/icons/arrow-left.svg')" aria-hidden="true"></i>Back</a>{% endif
+        %}<button class="primary" id="open-report" type="button">Generate report</button>
+        <div class="log-count"><span>Total melts</span><strong id="log-count">0</strong></div>
+      </div>
+    </div>
     <section class="panel logs-panel">
       <div class="logs-table-wrap">
         <table class="logs-table">
-          <thead><tr><th>#</th><th>Furnace</th><th>Melt number</th><th>Shift type</th><th>Total weight</th><th>Products</th><th>Captured by</th><th>Last captured</th></tr></thead>
-          <tbody id="logs-body"><tr><td colspan="8" class="logs-empty">Loading melt logs...</td></tr></tbody>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Furnace</th>
+              <th>Melt number</th>
+              <th>Shift type</th>
+              <th>Total weight</th>
+              <th>Products</th>
+              <th>Captured by</th>
+              <th>Last captured</th>
+            </tr>
+          </thead>
+          <tbody id="logs-body">
+            <tr>
+              <td colspan="8" class="logs-empty">Loading melt logs...</td>
+            </tr>
+          </tbody>
         </table>
       </div>
       <div class="log-pagination">
@@ -21,37 +48,66 @@
         <button type="button" id="next-page">Next →</button>
       </div>
       <div class="logs-error" id="logs-error" hidden></div>
-      <div class="automatic-backup-footer"><div class="automatic-backup-status" id="automatic-backup-status" role="status" hidden></div><a href="/backup-history">Backup log</a></div>
+      <div class="automatic-backup-footer">
+        <div class="automatic-backup-status" id="automatic-backup-status" role="status" hidden></div><a
+          href="/backup-history">Backup log</a>
+      </div>
     </section>
   </main>
   {% if is_admin %}
   <dialog class="edit-log-dialog" id="edit-log-dialog">
     <form id="edit-log-form">
-      <div class="dialog-title"><h2>Edit capture log</h2><button type="button" id="close-log-dialog">×</button></div>
+      <div class="dialog-title">
+        <h2>Edit capture log</h2><button type="button" id="close-log-dialog">×</button>
+      </div>
       <input type="hidden" id="edit-log-id">
       <div class="field"><label for="edit-log-name">Product name</label><input id="edit-log-name" required></div>
       <div class="field"><label for="edit-log-weight">Captured weight</label><input id="edit-log-weight" required></div>
-      <div class="field"><label for="edit-log-time">Capture date and time</label><input id="edit-log-time" type="datetime-local" step="0.001" required></div>
+      <div class="field"><label for="edit-log-time">Capture date and time</label><input id="edit-log-time"
+          type="datetime-local" step="0.001" required></div>
       <div class="form-message" id="edit-log-error" hidden></div>
-      <div class="dialog-actions"><button type="button" id="cancel-log-edit">Cancel</button><button class="primary" type="submit">Save changes</button></div>
+      <div class="dialog-actions"><button type="button" id="cancel-log-edit">Cancel</button><button class="primary"
+          type="submit">Save changes</button></div>
     </form>
   </dialog>
   {% endif %}
   <dialog class="report-dialog" id="report-dialog">
-    <div class="dialog-title"><h2>Generate capture report</h2><button type="button" id="close-report">×</button></div>
+    <div class="dialog-title">
+      <h2>Generate capture report</h2><button type="button" id="close-report">×</button>
+    </div>
     <form id="report-form" class="report-filters">
-      <div class="field"><label for="report-type">Report type</label><select id="report-type"><option value="melt">Melt summary</option><option value="individual">Individual captures</option></select></div>
-      <div class="field"><label for="report-output">Report output</label><select id="report-output"><option value="share">Share / QR code</option><option value="usb">USB backup (CSV + PDF)</option></select></div>
-      <div class="field"><label for="report-shift">Shift</label><select id="report-shift"><option value="all">All shifts combined</option></select></div>
-      <div class="field"><label for="report-range-type">Range type</label><select id="report-range-type"><option value="date">Date range</option><option value="custom">Custom date and time</option></select></div>
-      <div class="field"><label for="report-furnace">Furnace</label><select id="report-furnace"><option value="all">All furnaces</option></select></div>
-      <div class="field"><label for="report-from-date">From date</label><input id="report-from-date" type="date" required></div>
-      <div class="field"><label for="report-to-date">To date</label><input id="report-to-date" type="date" required></div>
-      <div class="field report-time-field" hidden><label for="report-start-time">From time</label><input id="report-start-time" type="time" value="00:00"></div>
-      <div class="field report-time-field" hidden><label for="report-end-time">To time</label><input id="report-end-time" type="time" value="23:59"></div>
+      <div class="field"><label for="report-type">Report type</label><select id="report-type">
+          <option value="melt">Melt summary</option>
+          <option value="individual">Individual captures</option>
+        </select></div>
+      <div class="field"><label for="report-output">Report output</label><select id="report-output">
+          <option value="share">Share / QR code</option>
+          <option value="usb">USB backup (CSV + PDF)</option>
+        </select></div>
+      <div class="field"><label for="report-shift">Shift</label><select id="report-shift">
+          <option value="all">All shifts combined</option>
+        </select></div>
+      <div class="field"><label for="report-range-type">Range type</label><select id="report-range-type">
+          <option value="date">Date range</option>
+          <option value="custom">Custom date and time</option>
+        </select></div>
+      <div class="field"><label for="report-furnace">Furnace</label><select id="report-furnace">
+          <option value="all">All furnaces</option>
+        </select></div>
+      <div class="field"><label for="report-from-date">From date</label><input id="report-from-date" type="date"
+          required></div>
+      <div class="field"><label for="report-to-date">To date</label><input id="report-to-date" type="date" required>
+      </div>
+      <div class="field report-time-field" hidden><label for="report-start-time">From time</label><input
+          id="report-start-time" type="time" value="00:00"></div>
+      <div class="field report-time-field" hidden><label for="report-end-time">To time</label><input
+          id="report-end-time" type="time" value="23:59"></div>
       <div class="report-usb-controls" id="report-usb-controls" hidden>
-        <div class="field"><label for="backup-drive">USB drive</label><select id="backup-drive"><option value="">Select USB drive</option></select></div>
-        <button class="icon-button" id="refresh-usb" type="button" title="Refresh USB drives" aria-label="Refresh USB drives">&#8635;</button>
+        <div class="field"><label for="backup-drive">USB drive</label><select id="backup-drive">
+            <option value="">Select USB drive</option>
+          </select></div>
+        <button class="icon-button" id="refresh-usb" type="button" title="Refresh USB drives"
+          aria-label="Refresh USB drives">&#8635;</button>
       </div>
       <button class="primary" id="generate-report" type="submit">Generate</button>
     </form>
@@ -59,22 +115,75 @@
     <div class="report-error" id="report-error" hidden></div>
     <section class="report-preview" id="report-preview" hidden>
       <div class="report-meta" id="report-meta"></div>
-      <div class="report-qr"><button class="report-qr-image-button" id="expand-report-qr" type="button" title="Open QR full screen" aria-label="Open QR full screen"><img id="report-qr-image" alt="QR code to download this report"></button><div><strong>Scan to download report</strong><span>The CSV report downloads automatically on the scanned device. Link expires in 15 minutes.</span><a id="report-download-link" target="_blank" rel="noopener">Open download link</a></div></div>
-      <div class="report-preview-table"><table><thead id="report-head"></thead><tbody id="report-body"></tbody></table></div>
+      <div class="report-qr"><button class="report-qr-image-button" id="expand-report-qr" type="button"
+          title="Open QR full screen" aria-label="Open QR full screen"><img id="report-qr-image"
+            alt="QR code to download this report"></button>
+        <div><strong>Scan to download report</strong><span>The CSV report downloads automatically on the scanned device.
+            Link expires in 15 minutes.</span><a id="report-download-link" target="_blank" rel="noopener">Open download
+            link</a></div>
+      </div>
+      <div class="report-preview-table">
+        <table>
+          <thead id="report-head"></thead>
+          <tbody id="report-body"></tbody>
+        </table>
+      </div>
       <div class="report-summary" id="report-summary"></div>
-      <div class="report-actions"><button class="ghost" id="download-report" type="button">Download CSV</button><button class="primary" id="print-report" type="button">Print / PDF</button></div>
+      <div class="report-actions"><button class="ghost" id="download-report" type="button">Download CSV</button><button
+          class="primary" id="print-report" type="button">Print / PDF</button></div>
     </section>
   </dialog>
   <dialog class="report-qr-dialog" id="report-qr-dialog" aria-labelledby="report-qr-title">
-    <div class="report-qr-header"><h2 id="report-qr-title">Scan to download report</h2><button class="ghost" id="close-report-qr" type="button">Back to report</button></div>
+    <div class="report-qr-header">
+      <h2 id="report-qr-title">Scan to download report</h2><button class="ghost" id="close-report-qr" type="button">Back
+        to report</button>
+    </div>
     <div class="report-qr-center"><img id="report-qr-full-image" alt="QR code to download this report"></div>
-    <div class="report-qr-footer"><span>Link expires in 15 minutes</span><a id="report-qr-download-link" target="_blank" rel="noopener">Download CSV</a></div>
+    <div class="report-qr-footer"><span>Link expires in 15 minutes</span><a id="report-qr-download-link" target="_blank"
+        rel="noopener">Download CSV</a></div>
   </dialog>
   <iframe id="report-print-frame" title="Printable report" hidden></iframe>
-  <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
+  <div class="capture-success-screen backup-success-screen" id="backup-success-screen" hidden>
+    <div class="backup-success-details">
+      <div class="success-check">✓</div>
+      <p class="backup-success-eyebrow">BACKUP COMPLETED SUCCESSFULLY</p>
+      <h2 id="backup-success-title">USB Backup Saved</h2>
+      <div class="backup-success-drive-pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round" width="18" height="18" aria-hidden="true">
+          <path d="M4 10h16v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
+          <path d="M10 10V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v6" />
+          <line x1="8" y1="14" x2="8" y2="14.01" />
+          <line x1="16" y1="14" x2="16" y2="14.01" />
+        </svg>
+        <strong id="backup-success-drive">—</strong>
+      </div>
+      <div class="backup-success-summary-line" id="backup-success-summary">—</div>
+      <div class="backup-success-metrics">
+        <div class="backup-metric">
+          <span class="metric-label">Total Melts</span>
+          <strong id="backup-success-melts">0</strong>
+        </div>
+        <div class="backup-metric-divider"></div>
+        <div class="backup-metric">
+          <span class="metric-label">Captures</span>
+          <strong id="backup-success-captures">0</strong>
+        </div>
+        <div class="backup-metric-divider"></div>
+        <div class="backup-metric">
+          <span class="metric-label">Total Weight</span>
+          <strong id="backup-success-weight">0.000 <small style="font-size:13px;color:#9ca3af;">kg</small></strong>
+        </div>
+      </div>
+      <time id="backup-success-time">—</time>
+      <small class="backup-countdown-notice">Closing in <strong id="backup-success-countdown">2</strong> seconds</small>
+    </div>
+  </div>
   <script>window.LOG_ADMIN = {{ 'true' if is_admin else 'false' }};</script>
-  <script src="{{ url_for('static', filename='capture_logs.js', v='10') }}"></script>
-  <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
+  <script src="{{ url_for('static', filename='capture_logs.js', v='11') }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}"
+    data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>
+
 </html>

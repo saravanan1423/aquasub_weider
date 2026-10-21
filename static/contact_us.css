@@ -1,0 +1,255 @@
+/* Contact Us Page Styles */
+.contact-us-page {
+  padding: 24px 32px 40px;
+  max-width: 1200px;
+}
+
+.contact-us-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.contact-us-header h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text, #064e3b);
+  letter-spacing: -0.01em;
+}
+
+.contact-us-card {
+  background: var(--panel, #ffffff);
+  border: 1px solid #d1ded6;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(6, 78, 59, 0.06);
+  padding: 38px 46px;
+  position: relative;
+  overflow: hidden;
+}
+
+.contact-card-grid {
+  display: grid;
+  grid-template-columns: 1.18fr 1px 1fr;
+  gap: 36px;
+  align-items: stretch;
+  position: relative;
+  z-index: 2;
+}
+
+/* Left Column */
+.contact-left-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.contact-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.contact-logo-img {
+  height: 48px;
+  width: auto;
+  max-width: 66px;
+  object-fit: contain;
+}
+
+.contact-brand-name {
+  font-size: 38px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  color: #064e3b;
+  line-height: 1;
+  font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+}
+
+.contact-teal-divider {
+  width: 220px;
+  height: 2.5px;
+  background: #2dd4bf;
+  margin: 18px 0 16px 0;
+  border-radius: 2px;
+}
+
+.contact-company-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #064e3b;
+  letter-spacing: 0.03em;
+  margin: 0 0 6px 0;
+  text-transform: uppercase;
+}
+
+.contact-tagline {
+  font-size: 14px;
+  color: #0f766e;
+  font-weight: 600;
+  line-height: 1.45;
+  margin: 0 0 32px 0;
+}
+
+.contact-features-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 14px;
+}
+
+.contact-feature-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.feature-icon-badge {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #e6f4ef;
+  color: #0f766e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.feature-icon-badge:hover {
+  transform: translateY(-2px);
+  background: #d1fae5;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.feature-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #064e3b;
+  line-height: 1.25;
+}
+
+/* Vertical Divider */
+.contact-vertical-divider {
+  background: #d8e6de;
+  width: 1px;
+  align-self: stretch;
+}
+
+/* Right Column */
+.contact-right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  position: relative;
+  min-height: 270px;
+  padding-left: 8px;
+}
+
+.contact-info-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  position: relative;
+  z-index: 2;
+}
+
+.contact-icon-pill {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #064e3b;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(6, 78, 59, 0.18);
+}
+
+.contact-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.contact-info-heading {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: #064e3b;
+  letter-spacing: -0.01em;
+}
+
+.contact-address-lines {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #334155;
+  font-weight: 500;
+}
+
+.contact-email-val {
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #064e3b;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.contact-email-val:hover {
+  color: #0f766e;
+  text-decoration: underline;
+}
+
+/* Subtle Weighbridge Graphic Watermark */
+.contact-watermark {
+  position: absolute;
+  right: -8px;
+  bottom: -10px;
+  width: 320px;
+  opacity: 0.18;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@media (max-width: 900px) {
+  .contact-card-grid {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+  .contact-vertical-divider {
+    display: none;
+  }
+  .contact-left-col {
+    padding-bottom: 24px;
+    border-bottom: 1px solid #d8e6de;
+  }
+  .contact-right-col {
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .contact-us-page {
+    padding: 16px 14px;
+  }
+  .contact-us-card {
+    padding: 24px 18px;
+  }
+  .contact-brand-name {
+    font-size: 30px;
+  }
+  .contact-features-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  .contact-watermark {
+    width: 200px;
+    opacity: 0.12;
+  }
+}

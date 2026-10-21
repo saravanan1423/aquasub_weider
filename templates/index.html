@@ -4,8 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Serial Raw Data Monitor</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='2') }}">
-  <style>.communication-page #status,.communication-page .weight-display { display:none; }.communication-page .weight-panel { grid-template-columns:minmax(0,1fr); }</style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='2') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='address_picker.css', v='1') }}">
 </head>
 <body>
   {% include 'navigation.html' %}
@@ -48,22 +49,90 @@
       <div><span>Latest frame</span><strong id="latest">—</strong></div>
     </section>
 
-    <section class="panel weight-panel">
-      <div class="weight-config">
-        <div>
-          <p class="eyebrow">PARSED OUTPUT</p>
-          <h2>Weight parsing</h2>
+    <section class="panel address-picker-panel" id="address-picker-panel">
+      <div class="picker-header">
+        <div class="picker-title-area">
+          <p class="eyebrow">CALIBRATION & EXTRACTION</p>
+          <h2>Live Raw / Address Picker</h2>
         </div>
-        <div class="field"><label for="start-marker">Start character</label><input id="start-marker" value="$" maxlength="8"></div>
-        <div class="field"><label for="end-marker">End character</label><input id="end-marker" value="]" maxlength="8"></div>
-        <div class="field"><label for="start-address">Start address</label><input id="start-address" type="number" min="1" value="5"></div>
-        <div class="field"><label for="end-address">End address</label><input id="end-address" type="number" min="1" value="10"></div>
+        <div class="picker-header-actions">
+          <button type="button" class="freeze-button" id="freeze-frame-btn" title="Pause live frame updates to pick characters easily">
+            <span id="freeze-icon">⏸</span> <span id="freeze-label">Freeze Frame</span>
+          </button>
+          <span class="picker-badge ready" id="picker-badge">Live preview ready</span>
+        </div>
       </div>
-      <div class="weight-display">
-        <span id="live-weight">------</span>
-        <small id="weight-state">Waiting for a matching value</small>
+
+      <!-- Quick Selector Bar (START, FROM, TO, END) -->
+      <div class="picker-mode-bar">
+        <span class="mode-prompt">Click a marker to select it, then click any byte card below:</span>
+        <div class="picker-mode-buttons">
+          <button type="button" class="picker-mode-btn mode-start active" data-mode="start" id="btn-mode-start" title="Click to pick Start character">
+            <span class="mode-tag badge-start">START</span>
+            <span class="mode-val" id="mode-val-start">=</span>
+          </button>
+          <button type="button" class="picker-mode-btn mode-from" data-mode="from" id="btn-mode-from" title="Click to pick Start address">
+            <span class="mode-tag badge-from">FROM</span>
+            <span class="mode-val" id="mode-val-from">Pos 4</span>
+          </button>
+          <button type="button" class="picker-mode-btn mode-to" data-mode="to" id="btn-mode-to" title="Click to pick End address">
+            <span class="mode-tag badge-to">TO</span>
+            <span class="mode-val" id="mode-val-to">Pos 10</span>
+          </button>
+          <button type="button" class="picker-mode-btn mode-end" data-mode="end" id="btn-mode-end" title="Click to pick End character">
+            <span class="mode-tag badge-end">END</span>
+            <span class="mode-val" id="mode-val-end">\</span>
+          </button>
+        </div>
       </div>
-      <div class="parse-preview"><span>Selected data</span><code id="selected-data">—</code></div>
+
+      <!-- The Visual Byte Cards Strip -->
+      <div class="picker-strip-wrapper">
+        <div class="raw-bytes-strip" id="raw-bytes-strip" tabindex="0" role="region" aria-label="Raw frame byte picker">
+          <!-- Byte cards will be dynamically rendered here -->
+        </div>
+      </div>
+
+      <!-- Selected Range Summary & Live Output -->
+      <div class="picker-footer">
+        <div class="picker-summary-line">
+          <strong>SELECTED RANGE</strong>
+          <span id="picker-summary-text">First ASCII 61 (=) | Last ASCII 92 (\) | Start Pos 4 | End Pos 10</span>
+        </div>
+        <div class="picker-output-grid">
+          <div class="picker-output-card output-weight">
+            <span class="output-label">LIVE PARSED WEIGHT</span>
+            <div class="output-value-row">
+              <strong id="live-weight">------</strong>
+              <small>kg</small>
+            </div>
+            <span class="output-sub" id="weight-state">Waiting for matching frame</span>
+          </div>
+          <div class="picker-output-card output-data">
+            <span class="output-label">SELECTED DATA</span>
+            <code id="selected-data">—</code>
+            <span class="output-sub" id="picker-extracted-sub">Characters 4–10</span>
+          </div>
+          <div class="picker-save-action">
+            <button type="button" class="save-apply-btn" id="save-from-picker">
+              <i class="ui-icon" style="--icon:url('/static/icons/save.svg')" aria-hidden="true"></i>
+              Save & Show on Main Screen
+            </button>
+          </div>
+        </div>
+
+        <div class="manual-inputs-collapse">
+          <button type="button" class="manual-toggle-btn" id="toggle-manual-fields">
+            ⚙ Show / Edit Manual Settings
+          </button>
+          <div class="manual-fields-row" id="manual-fields-row">
+            <div class="field"><label for="start-marker">Start character</label><input id="start-marker" value="=" maxlength="8"></div>
+            <div class="field"><label for="end-marker">End character</label><input id="end-marker" value="\" maxlength="8"></div>
+            <div class="field"><label for="start-address">Start address</label><input id="start-address" type="number" min="1" value="4"></div>
+            <div class="field"><label for="end-address">End address</label><input id="end-address" type="number" min="1" value="10"></div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="panel terminal-panel">
@@ -76,7 +145,6 @@
     </section>
     <p class="footnote">Frames end at CR/LF; continuous and undelimited data is handled automatically.</p>
   </main>
-  <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
   <script src="{{ url_for('static', filename='app.js', v='5') }}"></script>
   <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>

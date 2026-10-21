@@ -1,31 +1,45 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Shift Settings</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='1') }}">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shift Settings</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='1') }}">
 </head>
+
 <body>
   {% include 'navigation.html' %}
   <main class="shell with-sidebar shift-page">
     <header>
-      <h1>Shift Settings</h1><a class="settings-back" href="/settings"><i class="ui-icon" style="--icon:url('/static/icons/arrow-left.svg')" aria-hidden="true"></i>Back</a>
+      <a class="settings-back" href="/settings"><i class="ui-icon" style="--icon:url('/static/icons/arrow-left.svg')"
+          aria-hidden="true"></i>Back</a>
     </header>
     <section class="panel shift-settings">
-      <div class="shift-heading"><h2>Configured shifts</h2><strong id="shift-count">0</strong></div>
+      <div class="shift-heading">
+        <h2>Configured shifts</h2><strong id="shift-count">0</strong>
+      </div>
       <form id="shift-form" class="shift-form">
         <input id="shift-id" type="hidden">
-        <div class="field"><label for="shift-name">Shift name</label><input id="shift-name" maxlength="80" placeholder="Example: Morning shift" required></div>
-        <div class="field"><label for="shift-start">Start time</label><input id="shift-start" type="time" required></div>
+        <div class="field"><label for="shift-name">Shift name</label><input id="shift-name" maxlength="80"
+            placeholder="Example: Morning shift" required></div>
+        <div class="field"><label for="shift-start">Start time</label><input id="shift-start" type="time" required>
+        </div>
         <div class="field"><label for="shift-end">End time</label><input id="shift-end" type="time" required></div>
-        <div class="shift-form-actions"><button class="ghost" id="cancel-shift" type="button" hidden>Cancel</button><button class="primary" id="save-shift" type="submit">Add shift</button></div>
+        <div class="shift-form-actions"><button class="ghost" id="cancel-shift" type="button"
+            hidden>Cancel</button><button class="primary" id="save-shift" type="submit">Add shift</button></div>
       </form>
       <div class="shift-message" id="shift-message" hidden></div>
-      <div class="shift-list" id="shift-list"><p class="gallery-empty">No shifts configured.</p></div>
+      <div class="shift-list" id="shift-list">
+        <p class="gallery-empty">No shifts configured.</p>
+      </div>
     </section>
   </main>
-  <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
   <script src="{{ url_for('static', filename='shift_settings.js', v='5') }}"></script>
-  <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}"
+    data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>
+
 </html>

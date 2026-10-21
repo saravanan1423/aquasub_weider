@@ -1,77 +1,128 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Melt Material Allocation</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='15') }}">
 </head>
+
 <body class="allocation-screen">
   {% include 'navigation.html' %}
   <main class="shell with-sidebar material-allocation-page">
     <header class="main-live-bar allocation-toolbar">
       {% include 'brand_logo.html' %}
-      <button class="settings-back" id="allocation-back" type="button" hidden><i class="ui-icon" style="--icon:url('/static/icons/arrow-left.svg')" aria-hidden="true"></i>Back</button>
-      <h1 id="allocation-title">Melt Material Allocation</h1>
+      <button class="settings-back" id="allocation-back" type="button" hidden><i class="ui-icon"
+          style="--icon:url('/static/icons/arrow-left.svg')" aria-hidden="true"></i>Back</button>
+      <!-- <h1 id="allocation-title">Melt Material Allocation</h1> -->
       <output id="allocation-melt" hidden>-</output>
-      <time class="main-date-time allocation-date-time" id="allocation-date-time" datetime=""><img src="{{ url_for('static', filename='icons/calendar.svg') }}" alt="" aria-hidden="true"><span><strong id="allocation-date"></strong><small id="allocation-time"></small></span></time>
-      <button class="icon-button allocation-info-button" id="allocation-info-button" type="button" title="Allocation dashboard" aria-label="Allocation dashboard" hidden><i class="ui-icon" style="--icon:url('/static/icons/info.svg')" aria-hidden="true"></i></button>
-      <a class="icon-button" href="/settings" title="Settings" aria-label="Settings"><i class="ui-icon" style="--icon:url('/static/icons/settings.svg')" aria-hidden="true"></i></a>
+      <time class="main-date-time allocation-date-time" id="allocation-date-time" datetime=""><img
+          src="{{ url_for('static', filename='icons/calendar.svg') }}" alt="" aria-hidden="true"><span><strong
+            id="allocation-date"></strong><small id="allocation-time"></small></span></time>
+      <button class="icon-button allocation-info-button" id="allocation-info-button" type="button"
+        title="Allocation dashboard" aria-label="Allocation dashboard" hidden><i class="ui-icon"
+          style="--icon:url('/static/icons/info.svg')" aria-hidden="true"></i></button>
+      <a class="icon-button" href="/settings" title="Settings" aria-label="Settings"><i class="ui-icon"
+          style="--icon:url('/static/icons/settings.svg')" aria-hidden="true"></i></a>
     </header>
-    <select id="allocation-furnace" aria-label="Furnace" hidden><option value="">Select furnace</option></select>
+    <select id="allocation-furnace" aria-label="Furnace" hidden>
+      <option value="">Select furnace</option>
+    </select>
     <section class="furnace-selector allocation-furnace-stage" id="allocation-furnace-stage">
-      <div class="selector-title"><h2>Select furnace</h2><strong id="allocation-furnace-count">0</strong></div>
-      <div class="furnace-grid" id="allocation-furnace-grid"><p class="gallery-empty">Loading furnaces...</p></div>
+      <div class="selector-title">
+        <h2>Select furnace</h2><strong id="allocation-furnace-count">0</strong>
+      </div>
+      <div class="furnace-grid" id="allocation-furnace-grid">
+        <p class="gallery-empty">Loading furnaces...</p>
+      </div>
     </section>
     <section class="allocation-panel" id="allocation-editor" hidden>
       <form id="allocation-form" hidden>
         <p class="allocation-status" id="allocation-status" role="status"></p>
         <div class="main-product-grid layout-six allocation-material-grid" id="allocation-materials"></div>
-        <div class="allocation-actions"><button class="ghost" id="allocation-continue" type="button" hidden disabled>Continue melt</button><button class="ghost" id="allocation-complete" type="button" hidden disabled><i class="ui-icon" style="--icon:url('/static/icons/check.svg')" aria-hidden="true"></i>Mark as completed</button><button class="primary" id="allocation-save" type="submit"><i class="ui-icon" style="--icon:url('/static/icons/save.svg')" aria-hidden="true"></i><span id="allocation-save-label">Save allocation</span></button></div>
+        <div class="allocation-actions"><button class="ghost" id="allocation-continue" type="button" hidden
+            disabled>Continue melt</button><button class="ghost" id="allocation-complete" type="button" hidden
+            disabled><i class="ui-icon" style="--icon:url('/static/icons/check.svg')" aria-hidden="true"></i>Mark as
+            completed</button><button class="primary" id="allocation-save" type="submit"><i class="ui-icon"
+              style="--icon:url('/static/icons/save.svg')" aria-hidden="true"></i><span id="allocation-save-label">Save
+              allocation</span></button></div>
       </form>
     </section>
     <div id="allocation-message" class="shift-message" role="status" hidden></div>
   </main>
-  <dialog class="allocation-action-dialog" id="allocation-action-dialog" role="alertdialog" aria-labelledby="allocation-action-title" aria-describedby="allocation-action-message">
+  <dialog class="allocation-action-dialog" id="allocation-action-dialog" role="alertdialog"
+    aria-labelledby="allocation-action-title" aria-describedby="allocation-action-message">
     <div class="allocation-action-content">
       <i class="ui-icon allocation-action-icon" style="--icon:url('/static/icons/info.svg')" aria-hidden="true"></i>
       <h2 id="allocation-action-title">Action required</h2>
       <p id="allocation-action-message"></p>
-      <div class="allocation-action-summary"><div><small>Melt number</small><strong id="allocation-action-melt"></strong></div><div><small>Total captured</small><strong id="allocation-action-total"></strong></div></div>
-      <div class="allocation-action-buttons"><button class="ghost" id="allocation-action-later" type="button">Review later</button><button class="primary" id="allocation-action-review" type="button" autofocus>Review melt</button></div>
+      <div class="allocation-action-summary">
+        <div><small>Melt number</small><strong id="allocation-action-melt"></strong></div>
+        <div><small>Total captured</small><strong id="allocation-action-total"></strong></div>
+      </div>
+      <div class="allocation-action-buttons"><button class="ghost" id="allocation-action-later" type="button">Review
+          later</button><button class="primary" id="allocation-action-review" type="button" autofocus>Review
+          melt</button></div>
     </div>
   </dialog>
-  <dialog class="allocation-dashboard-dialog" id="allocation-dashboard-dialog" aria-labelledby="allocation-dashboard-title">
+  <dialog class="allocation-dashboard-dialog" id="allocation-dashboard-dialog"
+    aria-labelledby="allocation-dashboard-title">
     <form method="dialog">
       <h2 id="allocation-dashboard-title">Melt dashboard</h2>
       <p id="allocation-dashboard-context"></p>
       <div class="allocation-overview">
-        <div class="allocation-stat"><div class="allocation-stat-icon allocated"><i class="ui-icon" style="--icon:url('/static/icons/clipboard-list.svg')" aria-hidden="true"></i></div><div><small>Total allocated</small><strong id="allocation-dashboard-allocated">0 kg</strong></div></div>
-        <div class="allocation-stat"><div class="allocation-stat-icon captured"><i class="ui-icon" style="--icon:url('/static/icons/weight.svg')" aria-hidden="true"></i></div><div><small>Total captured</small><strong id="allocation-dashboard-captured">0 kg</strong></div></div>
-        <div class="allocation-stat"><div class="allocation-completion-ring" id="allocation-dashboard-ring" role="meter" aria-label="Overall completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><strong>0%</strong></div><div><small>Overall completion</small><strong id="allocation-dashboard-percent">0%</strong></div></div>
+        <div class="allocation-stat">
+          <div class="allocation-stat-icon allocated"><i class="ui-icon"
+              style="--icon:url('/static/icons/clipboard-list.svg')" aria-hidden="true"></i></div>
+          <div><small>Total allocated</small><strong id="allocation-dashboard-allocated">0 kg</strong></div>
+        </div>
+        <div class="allocation-stat">
+          <div class="allocation-stat-icon captured"><i class="ui-icon" style="--icon:url('/static/icons/weight.svg')"
+              aria-hidden="true"></i></div>
+          <div><small>Total captured</small><strong id="allocation-dashboard-captured">0 kg</strong></div>
+        </div>
+        <div class="allocation-stat">
+          <div class="allocation-completion-ring" id="allocation-dashboard-ring" role="meter"
+            aria-label="Overall completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><strong>0%</strong>
+          </div>
+          <div><small>Overall completion</small><strong id="allocation-dashboard-percent">0%</strong></div>
+        </div>
       </div>
-      <div class="allocation-dashboard-actions"><button class="ghost" id="allocation-dashboard-continue" type="button" hidden disabled>Continue melt</button><button class="ghost" id="allocation-dashboard-complete" type="button" hidden disabled>Mark as completed</button><button class="primary" id="allocation-dashboard-close" type="submit">Close</button></div>
+      <div class="allocation-dashboard-actions"><button class="ghost" id="allocation-dashboard-continue" type="button"
+          hidden disabled>Continue melt</button><button class="ghost" id="allocation-dashboard-complete" type="button"
+          hidden disabled>Mark as completed</button><button class="primary" id="allocation-dashboard-close"
+          type="submit">Close</button></div>
     </form>
   </dialog>
   <dialog class="allocation-add-dialog" id="allocation-add-dialog" aria-labelledby="allocation-add-title">
     <form id="allocation-add-form">
       <h2 id="allocation-add-title">Add weight</h2>
-      <div class="allocation-add-summary"><div><small>Current allocated</small><strong id="allocation-add-current">0 kg</strong></div><div><small>New allocated</small><strong id="allocation-add-total" aria-live="polite">0 kg</strong></div></div>
-      <div class="field"><label for="allocation-add-kg">Additional (kg)</label><input id="allocation-add-kg" type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,3})?" maxlength="13" autocomplete="off" required></div>
+      <div class="allocation-add-summary">
+        <div><small>Current allocated</small><strong id="allocation-add-current">0 kg</strong></div>
+        <div><small>New allocated</small><strong id="allocation-add-total" aria-live="polite">0 kg</strong></div>
+      </div>
+      <div class="field"><label for="allocation-add-kg">Additional (kg)</label><input id="allocation-add-kg" type="text"
+          inputmode="decimal" pattern="[0-9]+([.][0-9]{1,3})?" maxlength="13" autocomplete="off" required></div>
       <div class="form-error" id="allocation-add-error" role="status" hidden></div>
-      <div class="allocation-add-actions"><button class="ghost" id="allocation-add-cancel" type="button">Cancel</button><button class="primary" id="allocation-add-apply" type="submit" disabled><i class="ui-icon" style="--icon:url('/static/icons/plus.svg')" aria-hidden="true"></i>Add kg</button></div>
+      <div class="allocation-add-actions"><button class="ghost" id="allocation-add-cancel"
+          type="button">Cancel</button><button class="primary" id="allocation-add-apply" type="submit" disabled><i
+            class="ui-icon" style="--icon:url('/static/icons/plus.svg')" aria-hidden="true"></i>Add kg</button></div>
     </form>
   </dialog>
   <dialog class="complete-melt-dialog" id="allocation-complete-dialog">
     <form method="dialog">
       <h2 id="allocation-complete-title">Complete allocation?</h2>
       <p id="allocation-complete-summary"></p>
-      <div class="complete-dialog-actions"><button class="ghost" value="cancel">Cancel</button><button class="primary" id="allocation-confirm" type="button">Mark as completed</button></div>
+      <div class="complete-dialog-actions"><button class="ghost" value="cancel">Cancel</button><button class="primary"
+          id="allocation-confirm" type="button">Mark as completed</button></div>
     </form>
   </dialog>
-  <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
   <script src="{{ url_for('static', filename='material_allocation.js', v='13') }}"></script>
-  <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}"
+    data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js', v='3') }}"></script>
 </body>
+
 </html>

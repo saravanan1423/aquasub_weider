@@ -131,6 +131,16 @@ class SerialMonitor:
     def status_snapshot(self):
         return self._snapshot()
 
+    def update_config(self, config):
+        with self._lock:
+            self.config.update(config)
+            if self._frames:
+                try:
+                    last_frame = self._frames[-1]
+                    self._read_weight(bytes(last_frame["bytes"]))
+                except Exception:
+                    pass
+
     def set_refresh_interval(self, interval_ms):
         with self._lock:
             self.config["refresh_interval_ms"] = interval_ms

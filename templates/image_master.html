@@ -1,43 +1,66 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Product Master</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='1') }}">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Product Master</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='1') }}">
 </head>
+
 <body>
   {% include 'navigation.html' %}
   <main class="shell with-sidebar product-master-page">
-    <header><h1>Product Master</h1><a class="settings-back" href="/settings"><i class="ui-icon" style="--icon:url('/static/icons/arrow-left.svg')" aria-hidden="true"></i>Back</a></header>
+    <header><a class="settings-back" href="/settings"><i class="ui-icon"
+          style="--icon:url('/static/icons/arrow-left.svg')" aria-hidden="true"></i>Back</a></header>
     <section class="image-layout">
       <form class="panel upload-form" id="upload-form">
         <h2 id="form-title">New image</h2>
         <div class="form-grid">
-          <div class="field"><label for="image-type">Record type *</label><select id="image-type" name="image_type" required><option value="furnace">Furnace (master)</option><option id="product-type-option" value="product">Product</option></select></div>
-          <div class="field" id="furnace-field" hidden><label for="furnace-id">Parent furnace *</label><select id="furnace-id" name="furnace_id"></select></div>
+          <div class="field"><label for="image-type">Record type *</label><select id="image-type" name="image_type"
+              required>
+              <option value="furnace">Furnace (master)</option>
+              <option id="product-type-option" value="product">Product</option>
+            </select></div>
+          <div class="field" id="furnace-field" hidden><label for="furnace-id">Parent furnace *</label><select
+              id="furnace-id" name="furnace_id"></select></div>
         </div>
         <label class="drop-zone" for="image-file">
           <input type="file" id="image-file" name="image" accept="image/*" required>
           <img id="preview" alt="Image preview" hidden>
-          <div id="drop-message"><strong>Choose an image</strong><span>JPG, PNG, WEBP, GIF, BMP or AVIF · maximum 25 MB</span></div>
+          <div id="drop-message"><strong>Choose an image</strong><span>JPG, PNG, WEBP, GIF, BMP or AVIF · maximum 25
+              MB</span></div>
         </label>
-        <div class="field"><label for="image-name" id="image-name-label">Furnace name *</label><input id="image-name" name="image_name" maxlength="120" required placeholder="Example: Furnace 1"></div>
-        <div class="field"><label for="description">Description (optional)</label><textarea id="description" name="description" rows="4" maxlength="1000" placeholder="Add image details"></textarea></div>
+        <div class="field"><label for="image-name" id="image-name-label">Furnace name *</label><input id="image-name"
+            name="image_name" maxlength="120" required placeholder="Example: Furnace 1"></div>
+        <div class="field"><label for="description">Description (optional)</label><textarea id="description"
+            name="description" rows="4" maxlength="1000" placeholder="Add image details"></textarea></div>
         <div class="form-grid">
           <div class="field"><label>Capture date and time</label><input id="capture-time" readonly></div>
           <div class="field"><label>Created by</label><input value="{{ current_username }}" readonly></div>
         </div>
         <div class="form-message" id="form-message" hidden></div>
-        <div class="image-form-actions"><button class="ghost" type="button" id="cancel-edit" hidden>Cancel</button><button class="primary" type="submit" id="upload-button">Save image</button></div>
+        <div class="image-form-actions"><button class="ghost" type="button" id="cancel-edit"
+            hidden>Cancel</button><button class="primary" type="submit" id="upload-button">Save image</button></div>
       </form>
       <section class="panel gallery-panel">
-        <div class="gallery-title"><div><p class="eyebrow">FURNACE MASTER</p><h2>Furnaces and products</h2></div><strong id="image-count">0</strong></div>
-        <div class="gallery" id="gallery"><p class="gallery-empty">No images uploaded yet.</p></div>
+        <div class="gallery-title">
+          <div>
+            <p class="eyebrow">FURNACE MASTER</p>
+            <h2>Furnaces and products</h2>
+          </div><strong id="image-count">0</strong>
+        </div>
+        <div class="gallery" id="gallery">
+          <p class="gallery-empty">No images uploaded yet.</p>
+        </div>
       </section>
     </section>
   </main>
-  <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
   <script src="{{ url_for('static', filename='image_master.js', v='5') }}"></script>
-  <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}"
+    data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>
+
 </html>

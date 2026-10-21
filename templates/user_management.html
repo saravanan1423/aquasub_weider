@@ -1,29 +1,61 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>User Management</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='1') }}"></head>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>User Management</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='theme.css', v='1') }}">
+</head>
+
 <body>
   {% include 'navigation.html' %}
   <main class="shell with-sidebar users-screen">
-    <div class="users-heading"><div><p class="eyebrow">ADMINISTRATION</p><h1>User Management</h1></div><a class="settings-back" href="/settings"><i class="ui-icon" style="--icon:url('/static/icons/arrow-left.svg')" aria-hidden="true"></i>Back</a></div>
+    <div class="users-heading"><a class="settings-back" href="/settings"><i class="ui-icon"
+          style="--icon:url('/static/icons/arrow-left.svg')" aria-hidden="true"></i>Back</a></div>
     <section class="users-layout">
       <form class="panel create-user-form" id="create-user-form">
         <h2>Create user</h2>
-        <div class="field"><label for="new-username">Username</label><input id="new-username" required minlength="3" maxlength="50" autocomplete="off"></div>
-        <div class="field"><label for="new-password">Password</label><input id="new-password" type="password" required minlength="6" autocomplete="new-password"></div>
-        <fieldset><legend>Screen access</legend><label><input type="checkbox" value="main"> Main Screen</label><label><input type="checkbox" value="settings"> Settings menu</label><label><input type="checkbox" value="communication"> Communication Settings</label><label><input type="checkbox" value="shifts"> Shift Settings</label><label><input type="checkbox" value="melts"> Melt Number Settings</label><label><input type="checkbox" value="allocation"> Melt Material Allocation</label><label><input type="checkbox" value="backup"> Backup Settings</label><label><input type="checkbox" value="products"> Product Master</label><label><input type="checkbox" value="logs"> Capture Logs</label></fieldset>
+        <div class="field"><label for="new-username">Username</label><input id="new-username" required minlength="3"
+            maxlength="50" autocomplete="off"></div>
+        <div class="field"><label for="new-password">Password</label><input id="new-password" type="password" required
+            minlength="6" autocomplete="new-password"></div>
+        <fieldset>
+          <legend>Screen access</legend><label><input type="checkbox" value="main"> Main Screen</label><label><input
+              type="checkbox" value="settings"> Settings menu</label><label><input type="checkbox"
+              value="communication"> Communication Settings</label><label><input type="checkbox" value="shifts"> Shift
+            Settings</label><label><input type="checkbox" value="melts"> Melt Number Settings</label><label><input
+              type="checkbox" value="allocation"> Melt Material Allocation</label><label><input type="checkbox"
+              value="backup"> Backup Settings</label><label><input type="checkbox" value="products"> Product
+            Master</label><label><input type="checkbox" value="logs"> Capture Logs</label>
+        </fieldset>
         <label class="login-visibility"><input id="show-in-login" type="checkbox"> Show in login dropdown</label>
-        <div class="form-message" id="user-message" hidden></div><button class="primary" type="submit">Create user</button>
+        <div class="form-message" id="user-message" hidden></div><button class="primary" type="submit">Create
+          user</button>
         <div class="password-divider"></div>
         <h2>Change admin password</h2>
-        <div class="field"><label for="current-admin-password">Current password</label><input id="current-admin-password" type="password" autocomplete="current-password"></div>
-        <div class="field"><label for="new-admin-password">New password</label><input id="new-admin-password" type="password" minlength="8" autocomplete="new-password"></div>
-        <div class="field"><label for="confirm-admin-password">Confirm new password</label><input id="confirm-admin-password" type="password" minlength="8" autocomplete="new-password"></div>
-        <div class="form-message" id="password-message" hidden></div><button type="button" id="change-password-button">Change password</button>
+        <div class="field"><label for="current-admin-password">Current password</label><input
+            id="current-admin-password" type="password" autocomplete="current-password"></div>
+        <div class="field"><label for="new-admin-password">New password</label><input id="new-admin-password"
+            type="password" minlength="8" autocomplete="new-password"></div>
+        <div class="field"><label for="confirm-admin-password">Confirm new password</label><input
+            id="confirm-admin-password" type="password" minlength="8" autocomplete="new-password"></div>
+        <div class="form-message" id="password-message" hidden></div><button type="button"
+          id="change-password-button">Change password</button>
       </form>
-      <section class="panel users-list-panel"><div class="users-list-title"><h2>Users</h2><strong id="users-count">0</strong></div><div class="users-list" id="users-list"></div></section>
+      <section class="panel users-list-panel">
+        <div class="users-list-title">
+          <h2>Users</h2><strong id="users-count">0</strong>
+        </div>
+        <div class="users-list" id="users-list"></div>
+      </section>
     </section>
   </main>
-  <div class="powered-by">Powered by <strong>Weider Weighing and Automations</strong></div>
   <script src="{{ url_for('static', filename='user_management.js', v='4') }}"></script>
-  <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
+  <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}"
+    data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
-</body></html>
+</body>
+
+</html>

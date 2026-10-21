@@ -21,7 +21,7 @@ def current_user_access():
 def required_permissions():
     path, method = request.path, request.method
     if path == "/": return {"main"}
-    if path == "/settings": return SETTINGS_SCREENS | {"settings"}
+    if path in {"/settings", "/contact-us"}: return SETTINGS_SCREENS | {"settings"}
     if path == "/communication": return {"communication"}
     if path == "/shifts": return {"shifts"}
     if path == "/melt-settings": return {"melts"}
