@@ -1,15 +1,22 @@
 import re
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
 from core.database import database_connection
 from core.audit import record_changes
+from core.auth import current_user_access
 from communication_setting.serial_monitor import monitor
 
 main_bp = Blueprint("main_screen", __name__)
 
 @main_bp.get("/")
-def index(): return render_template("main.html")
+def index():
+    user, permissions = current_user_access()
+    if user and user.get("role") != "admin":
+        default_screen = user.get("default_screen") or ("allocation" if "allocation" in permissions and "main" not in permissions else "main")
+        if default_screen == "allocation" and "allocation" in permissions and "main" not in permissions:
+            return redirect(url_for("main_screen.material_allocation_page"))
+    return render_template("main.html")
 
 @main_bp.get("/settings")
 def settings_page(): return render_template("settings.html")

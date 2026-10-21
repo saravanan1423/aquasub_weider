@@ -57,6 +57,7 @@ def initialize_database(app):
                 username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'user',
                 show_in_login INTEGER NOT NULL DEFAULT 0,
+                default_screen TEXT NOT NULL DEFAULT 'main',
                 created_at TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS user_permissions (
@@ -170,6 +171,8 @@ def initialize_database(app):
             connection.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
         if "show_in_login" not in columns:
             connection.execute("ALTER TABLE users ADD COLUMN show_in_login INTEGER NOT NULL DEFAULT 0")
+        if "default_screen" not in columns:
+            connection.execute("ALTER TABLE users ADD COLUMN default_screen TEXT NOT NULL DEFAULT 'main'")
         serial_columns = {row[1] for row in connection.execute("PRAGMA table_info(serial_settings)")}
         if "frame_timeout" not in serial_columns:
             connection.execute("ALTER TABLE serial_settings ADD COLUMN frame_timeout REAL NOT NULL DEFAULT 1.0")

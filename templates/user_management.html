@@ -23,13 +23,18 @@
             minlength="6" autocomplete="new-password"></div>
         <fieldset>
           <legend>Screen access</legend><label><input type="checkbox" value="main"> Main Screen</label><label><input
-              type="checkbox" value="settings"> Settings menu</label><label><input type="checkbox"
+              type="checkbox" value="allocation"> Melt Material Allocation</label><label><input type="checkbox"
+              value="settings"> Settings menu</label><label><input type="checkbox"
               value="communication"> Communication Settings</label><label><input type="checkbox" value="shifts"> Shift
             Settings</label><label><input type="checkbox" value="melts"> Melt Number Settings</label><label><input
-              type="checkbox" value="allocation"> Melt Material Allocation</label><label><input type="checkbox"
-              value="backup"> Backup Settings</label><label><input type="checkbox" value="products"> Product
-            Master</label><label><input type="checkbox" value="logs"> Capture Logs</label>
+              type="checkbox" value="backup"> Backup Settings</label><label><input type="checkbox"
+              value="products"> Product Master</label><label><input type="checkbox" value="logs"> Capture
+            Logs</label>
         </fieldset>
+        <label class="default-screen-label"><small>Main / Start screen</small><select id="new-default-screen">
+            <option value="main">Main Screen</option>
+            <option value="allocation">Melt Material Allocation</option>
+          </select></label>
         <label class="login-visibility"><input id="show-in-login" type="checkbox"> Show in login dropdown</label>
         <div class="form-message" id="user-message" hidden></div><button class="primary" type="submit">Create
           user</button>
@@ -52,7 +57,7 @@
       </section>
     </section>
   </main>
-  <script src="{{ url_for('static', filename='user_management.js', v='4') }}"></script>
+  <script src="{{ url_for('static', filename='user_management.js', v='5') }}"></script>
   <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}"
     data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>

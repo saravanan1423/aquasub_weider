@@ -58,8 +58,8 @@
 }
 
 .contact-brand-name {
-  font-size: 38px;
-  font-weight: 850;
+  font-size: 30px;
+  font-weight: 600;
   letter-spacing: 0.04em;
   color: #064e3b;
   line-height: 1;
@@ -222,13 +222,16 @@
     grid-template-columns: 1fr;
     gap: 30px;
   }
+
   .contact-vertical-divider {
     display: none;
   }
+
   .contact-left-col {
     padding-bottom: 24px;
     border-bottom: 1px solid #d8e6de;
   }
+
   .contact-right-col {
     padding-left: 0;
   }
@@ -238,16 +241,20 @@
   .contact-us-page {
     padding: 16px 14px;
   }
+
   .contact-us-card {
     padding: 24px 18px;
   }
+
   .contact-brand-name {
     font-size: 30px;
   }
+
   .contact-features-row {
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
   }
+
   .contact-watermark {
     width: 200px;
     opacity: 0.12;

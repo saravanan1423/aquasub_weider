@@ -11,16 +11,23 @@ def current_user_access():
     if not session.get("user_id"):
         return None, set()
     with database_connection() as connection:
-        user = connection.execute("SELECT id,username,role FROM users WHERE id=?", (session["user_id"],)).fetchone()
+        user = connection.execute("SELECT * FROM users WHERE id=?", (session["user_id"],)).fetchone()
         if user is None:
             return None, set()
+        user = dict(user)
+        user["default_screen"] = user.get("default_screen") or "main"
         permissions = {row["screen"] for row in connection.execute("SELECT screen FROM user_permissions WHERE user_id=?", (user["id"],))}
     return user, (SCREENS if user["role"] == "admin" else permissions)
 
 
 def required_permissions():
     path, method = request.path, request.method
-    if path == "/": return {"main"}
+    if path == "/":
+        user, permissions = current_user_access()
+        if user and user.get("role") != "admin":
+            if "main" not in permissions and "allocation" in permissions:
+                return {"allocation"}
+        return {"main"}
     if path == "/settings": return SETTINGS_SCREENS | {"settings"}
     if path in {"/contact-us", "/contactus", "/contact"}: return set()
     if path == "/communication": return {"communication"}
@@ -74,9 +81,11 @@ def register_auth(app):
     @app.context_processor
     def navigation_access():
         user, permissions = current_user_access()
+        default_screen = user.get("default_screen", "main") if user else "main"
         return {
             "current_username": user["username"] if user else "",
             "is_admin": bool(user and user["role"] == "admin"),
+            "user_default_screen": default_screen,
             "can_access_settings": bool(user and (user["role"] == "admin" or "settings" in permissions or SETTINGS_SCREENS.intersection(permissions))),
             "can_access": lambda screen: bool(user and (user["role"] == "admin" or screen in permissions)),
         }

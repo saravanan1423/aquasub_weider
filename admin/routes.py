@@ -17,11 +17,17 @@ admin_bp=Blueprint("admin",__name__)
 
 @admin_bp.route("/login",methods=["GET","POST"])
 def login():
-    if session.get("user_id"): return redirect(url_for("main_screen.index"))
+    if session.get("user_id"):
+        user, permissions = current_user_access()
+        if user and user.get("role") != "admin":
+            user_def = user.get("default_screen", "main")
+            if user_def == "allocation" and "allocation" in permissions and "main" not in permissions:
+                return redirect(url_for("main_screen.material_allocation_page"))
+        return redirect(url_for("main_screen.index"))
     error=""
     if request.method=="POST":
         username=request.form.get("username","").strip(); password=request.form.get("password","")
-        with database_connection() as connection: user=connection.execute("SELECT id,username,password_hash,role FROM users WHERE username=?",(username,)).fetchone()
+        with database_connection() as connection: user=connection.execute("SELECT * FROM users WHERE username=?",(username,)).fetchone()
         if user and check_password_hash(user["password_hash"],password):
             session.clear(); session.update(user_id=user["id"],username=user["username"],role=user["role"])
             with database_connection() as connection:
@@ -31,7 +37,21 @@ def login():
             if not destination.startswith("/") or destination.startswith("//"):
                 if user["role"]=="admin": destination="/"
                 else:
-                    _,permissions=current_user_access(); destination=next((path for screen,path in (("main","/"),("settings","/settings"),("communication","/communication"),("products","/images"),("logs","/logs"),("shifts","/shifts"),("melts","/melt-settings"),("allocation","/material-allocation"),("backup","/backup-settings")) if screen in permissions),"/login")
+                    _,permissions=current_user_access()
+                    user_def = user["default_screen"] if "default_screen" in user.keys() and user["default_screen"] else "main"
+                    if user_def == "allocation" and "allocation" in permissions:
+                        destination = "/material-allocation"
+                    elif user_def == "main" and "main" in permissions:
+                        destination = "/"
+                    else:
+                        destination=next((path for screen,path in (("main","/"),("allocation","/material-allocation"),("settings","/settings"),("communication","/communication"),("products","/images"),("logs","/logs"),("shifts","/shifts"),("melts","/melt-settings"),("backup","/backup-settings")) if screen in permissions),"/login")
+            elif destination == "/" and user["role"] != "admin":
+                _,permissions=current_user_access()
+                user_def = user["default_screen"] if "default_screen" in user.keys() and user["default_screen"] else "main"
+                if "main" not in permissions and "allocation" in permissions:
+                    destination = "/material-allocation"
+                elif user_def == "allocation" and "allocation" in permissions:
+                    destination = "/material-allocation"
             return redirect(destination)
         error="Invalid username or password"
     with database_connection() as connection:
@@ -229,19 +249,27 @@ def permissions(values):
 def users():
     if request.method=="GET":
         with database_connection() as connection:
-            rows=connection.execute("SELECT id,username,role,show_in_login,created_at FROM users ORDER BY role,username").fetchall(); result=[]
+            rows=connection.execute("SELECT * FROM users ORDER BY role,username").fetchall(); result=[]
             for user in rows:
-                item=dict(user); item["show_in_login"]=bool(item["show_in_login"]); item["permissions"]=[row["screen"] for row in connection.execute("SELECT screen FROM user_permissions WHERE user_id=? ORDER BY screen",(user["id"],))]; result.append(item)
+                item=dict(user)
+                item["show_in_login"]=bool(item.get("show_in_login",0))
+                item["default_screen"]=item.get("default_screen") or "main"
+                item["permissions"]=[row["screen"] for row in connection.execute("SELECT screen FROM user_permissions WHERE user_id=? ORDER BY screen",(user["id"],))]
+                result.append(item)
         return jsonify(result)
     payload=request.get_json(silent=True) or {}; username=str(payload.get("username","")).strip(); password=str(payload.get("password",""))
+    default_screen=str(payload.get("default_screen","main")).strip()
+    if default_screen not in {"main","allocation"}: default_screen="main"
     try:
         allowed=permissions(payload.get("permissions"))
+        if default_screen == "main" and "main" not in allowed and "allocation" in allowed:
+            default_screen = "allocation"
         show_in_login=payload.get("show_in_login",False)
         if not isinstance(show_in_login,bool): raise ValueError("Choose whether to show this user at login")
         if not re.fullmatch(r"[A-Za-z0-9_.-]{3,50}",username): raise ValueError("Username must be 3–50 characters using letters, numbers, dot, dash, or underscore")
         if len(password)<6: raise ValueError("Password must contain at least 6 characters")
         with database_connection() as connection:
-            user_id=connection.execute("INSERT INTO users (username,password_hash,role,show_in_login,created_at) VALUES (?,?,\'user\',?,?)",(username,generate_password_hash(password),int(show_in_login),datetime.now().astimezone().isoformat(timespec="seconds"))).lastrowid
+            user_id=connection.execute("INSERT INTO users (username,password_hash,role,show_in_login,default_screen,created_at) VALUES (?,?,'user',?,?,?)",(username,generate_password_hash(password),int(show_in_login),default_screen,datetime.now().astimezone().isoformat(timespec="seconds"))).lastrowid
             connection.executemany("INSERT INTO user_permissions (user_id,screen) VALUES (?,?)",[(user_id,screen) for screen in allowed])
     except sqlite3.IntegrityError: return jsonify({"ok":False,"error":"That username already exists"}),409
     except ValueError as error: return jsonify({"ok":False,"error":str(error)}),400
@@ -257,20 +285,27 @@ def user(user_id):
         with database_connection() as connection: connection.execute("DELETE FROM user_permissions WHERE user_id=?",(user_id,)); connection.execute("DELETE FROM users WHERE id=?",(user_id,))
         return jsonify({"ok":True})
     payload=request.get_json(silent=True) or {}; username=str(payload.get("username","")).strip(); password=str(payload.get("password",""))
+    existing_dict = dict(existing)
+    existing_default_screen = existing_dict.get("default_screen") or "main"
+    default_screen = str(payload.get("default_screen", existing_default_screen)).strip()
+    if default_screen not in {"main", "allocation"}: default_screen = "main"
     try:
         allowed=permissions(payload.get("permissions"))
+        if default_screen == "main" and "main" not in allowed and "allocation" in allowed:
+            default_screen = "allocation"
+        elif default_screen == "allocation" and "allocation" not in allowed and "main" in allowed:
+            default_screen = "main"
         show_in_login=payload.get("show_in_login",bool(existing["show_in_login"]))
         if not isinstance(show_in_login,bool): raise ValueError("Choose whether to show this user at login")
         if not re.fullmatch(r"[A-Za-z0-9_.-]{3,50}",username): raise ValueError("Enter a valid username")
         if password and len(password)<6: raise ValueError("Password must contain at least 6 characters")
         with database_connection() as connection:
-            if password: connection.execute("UPDATE users SET username=?,password_hash=?,show_in_login=? WHERE id=?",(username,generate_password_hash(password),int(show_in_login),user_id))
-            else: connection.execute("UPDATE users SET username=?,show_in_login=? WHERE id=?",(username,int(show_in_login),user_id))
+            if password: connection.execute("UPDATE users SET username=?,password_hash=?,show_in_login=?,default_screen=? WHERE id=?",(username,generate_password_hash(password),int(show_in_login),default_screen,user_id))
+            else: connection.execute("UPDATE users SET username=?,show_in_login=?,default_screen=? WHERE id=?",(username,int(show_in_login),default_screen,user_id))
             connection.execute("DELETE FROM user_permissions WHERE user_id=?",(user_id,)); connection.executemany("INSERT INTO user_permissions (user_id,screen) VALUES (?,?)",[(user_id,screen) for screen in allowed])
     except sqlite3.IntegrityError: return jsonify({"ok":False,"error":"That username already exists"}),409
     except ValueError as error: return jsonify({"ok":False,"error":str(error)}),400
-    before={"username":existing["username"],"permissions":old_permissions,"show_in_login":bool(existing["show_in_login"])}
-    after={"username":username,"permissions":sorted(allowed),"show_in_login":show_in_login}
-    if password: before["password"]="protected"; after["password"]="changed"
+    before={"username":existing["username"],"permissions":old_permissions,"show_in_login":bool(existing["show_in_login"]),"default_screen":existing_default_screen}
+    after={"username":username,"permissions":sorted(allowed),"show_in_login":show_in_login,"default_screen":default_screen}
     record_changes("users",user_id,"update",before,after)
     return jsonify({"ok":True})
