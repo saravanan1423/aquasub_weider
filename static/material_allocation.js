@@ -57,21 +57,37 @@ function showMessage(message = "", error = false) {
 }
 function renderAllocation(data) {
   allocation = data;
-  $("allocation-melt").textContent = data.melt_number;
+  const meltEl = $("allocation-melt");
+  if (meltEl) {
+    meltEl.textContent = data.melt_number;
+    meltEl.hidden = false;
+  }
   const furnace = furnaces.find(item => item.id === data.furnace_id);
-  $("allocation-title").textContent = `${furnace?.name || "Furnace"} - Material allocation`;
-  $("allocation-melt").hidden = false;
-  $("allocation-back").hidden = false;
-  $("allocation-info-button").hidden = false;
-  $("allocation-furnace-stage").hidden = true;
-  $("allocation-editor").hidden = false;
-  $("allocation-materials").innerHTML = data.materials.map(item => {
-    const imageUrl = item.image_url || productImages.find(product => product.id === item.id)?.image_url || "";
-    const selected = item.allocated_kg !== null;
-    return `<article class="product-choice allocation-material-card ${selected ? "selected" : ""}" data-id="${item.id}"><div class="allocation-material-heading"><button type="button" class="allocation-material-media" aria-label="Enter allocated weight for ${escapeHtml(item.image_name)}" aria-pressed="${selected}"><img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.image_name)}"></button><strong class="allocation-material-name">${escapeHtml(item.image_name)}</strong></div><div class="allocation-material-values"><div class="allocation-allocated-label"><label for="allocation-weight-${item.id}">Allocated (kg)</label><button class="allocation-add-button" type="button" data-add-weight title="Add additional kg" aria-label="Add additional kg to ${escapeHtml(item.image_name)}"><i class="ui-icon" style="--icon:url('/static/icons/plus.svg')" aria-hidden="true"></i></button></div><input id="allocation-weight-${item.id}" aria-label="${escapeHtml(item.image_name)} allocated kg" type="text" inputmode="decimal" data-allocated-weight pattern="[0-9]+([.][0-9]{1,3})?" maxlength="13" value="${escapeHtml(item.allocated_kg)}" ${selected ? "required" : "disabled"}></div><progress class="allocation-progress" max="100" value="0" aria-label="${escapeHtml(item.image_name)} progress"></progress><div class="allocation-material-ratio"><strong data-weight-ratio>0 kg / 0 kg</strong><strong data-percent>0%</strong></div></article>`;
-  }).join("") || '<p class="gallery-empty">No materials added to this furnace.</p>';
-  $("allocation-form").hidden = false;
-  $("allocation-save").disabled = !data.materials.length;
+  const titleEl = $("allocation-title");
+  if (titleEl) {
+    titleEl.textContent = `${furnace?.name || "Furnace"} - Material allocation`;
+    titleEl.hidden = false;
+  }
+  const backEl = $("allocation-back");
+  if (backEl) backEl.hidden = false;
+  const infoEl = $("allocation-info-button");
+  if (infoEl) infoEl.hidden = false;
+  const stageEl = $("allocation-furnace-stage");
+  if (stageEl) stageEl.hidden = true;
+  const editorEl = $("allocation-editor");
+  if (editorEl) editorEl.hidden = false;
+  const materialsEl = $("allocation-materials");
+  if (materialsEl) {
+    materialsEl.innerHTML = data.materials.map(item => {
+      const imageUrl = item.image_url || productImages.find(product => product.id === item.id)?.image_url || "";
+      const selected = item.allocated_kg !== null;
+      return `<article class="product-choice allocation-material-card ${selected ? "selected" : ""}" data-id="${item.id}"><div class="allocation-material-heading"><button type="button" class="allocation-material-media" aria-label="Enter allocated weight for ${escapeHtml(item.image_name)}" aria-pressed="${selected}"><img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.image_name)}"></button><strong class="allocation-material-name">${escapeHtml(item.image_name)}</strong></div><div class="allocation-material-values"><div class="allocation-allocated-label"><label for="allocation-weight-${item.id}">Allocated (kg)</label><button class="allocation-add-button" type="button" data-add-weight title="Add additional kg" aria-label="Add additional kg to ${escapeHtml(item.image_name)}"><i class="ui-icon" style="--icon:url('/static/icons/plus.svg')" aria-hidden="true"></i></button></div><input id="allocation-weight-${item.id}" aria-label="${escapeHtml(item.image_name)} allocated kg" type="text" inputmode="decimal" data-allocated-weight pattern="[0-9]+([.][0-9]{1,3})?" maxlength="13" value="${escapeHtml(item.allocated_kg)}" readonly ${selected ? "required" : "disabled"}></div><progress class="allocation-progress" max="100" value="0" aria-label="${escapeHtml(item.image_name)} progress"></progress><div class="allocation-material-ratio"><strong data-weight-ratio>0 kg / 0 kg</strong><strong data-percent>0%</strong></div></article>`;
+    }).join("") || '<p class="gallery-empty">No materials added to this furnace.</p>';
+  }
+  const formEl = $("allocation-form");
+  if (formEl) formEl.hidden = false;
+  const saveEl = $("allocation-save");
+  if (saveEl) saveEl.disabled = !data.materials.length;
   updateAllocationStatus(data);
   updateAllocationProgress();
 }
@@ -210,10 +226,10 @@ document.addEventListener("visibilitychange", refreshStatus);
 async function selectAllocationFurnace() {
   const version = ++loadVersion;
   allocation = null;
-  $("allocation-form").hidden = true;
-  $("allocation-melt").textContent = "-";
+  if ($("allocation-form")) $("allocation-form").hidden = true;
+  if ($("allocation-melt")) $("allocation-melt").textContent = "-";
   showMessage();
-  const id = $("allocation-furnace").value;
+  const id = $("allocation-furnace") ? $("allocation-furnace").value : "";
   if (!id) return;
   try {
     const data = await jsonFetch(`/api/material-allocations/${id}`);
@@ -231,14 +247,19 @@ $("allocation-back").addEventListener("click", () => {
   if (saving) return;
   ++loadVersion;
   allocation = null;
-  $("allocation-furnace").value = "";
-  $("allocation-editor").hidden = true;
-  $("allocation-form").hidden = true;
-  $("allocation-furnace-stage").hidden = false;
-  $("allocation-melt").hidden = true;
-  $("allocation-back").hidden = true;
-  $("allocation-info-button").hidden = true;
-  $("allocation-title").textContent = "Melt Material Allocation";
+  const furnaceSelect = $("allocation-furnace");
+  if (furnaceSelect) furnaceSelect.value = "";
+  if ($("allocation-editor")) $("allocation-editor").hidden = true;
+  if ($("allocation-form")) $("allocation-form").hidden = true;
+  if ($("allocation-furnace-stage")) $("allocation-furnace-stage").hidden = false;
+  if ($("allocation-melt")) $("allocation-melt").hidden = true;
+  if ($("allocation-back")) $("allocation-back").hidden = true;
+  if ($("allocation-info-button")) $("allocation-info-button").hidden = true;
+  const titleEl = $("allocation-title");
+  if (titleEl) {
+    titleEl.textContent = "Melt Material Allocation";
+    titleEl.hidden = true;
+  }
   const keyboard = document.querySelector(".screen-keyboard");
   if (keyboard) keyboard.hidden = true;
   showMessage();
@@ -248,16 +269,15 @@ $("allocation-materials").addEventListener("click", event => {
   const card = event.target.closest(".allocation-material-card");
   if (!card || saving) return;
   if (event.target.closest("[data-add-weight]")) {
-    openAdditionalWeight(card);
+    const base = kgUnits(card.querySelector("[data-allocated-weight]").value);
+    if (base === null || base === 0) {
+      openSetWeight(card);
+    } else {
+      openAdditionalWeight(card);
+    }
     return;
   }
-  const input = card.querySelector("[data-allocated-weight]");
-  if (event.target === input && !input.disabled) return;
-  card.classList.add("selected");
-  card.querySelector(".allocation-material-media").setAttribute("aria-pressed", "true");
-  input.disabled = false;
-  input.required = true;
-  input.focus({preventScroll:true});
+  openSetWeight(card);
 });
 $("allocation-materials").addEventListener("input", event => {
   if (!event.target.matches("[data-allocated-weight]")) return;
@@ -270,7 +290,7 @@ $("allocation-materials").addEventListener("input", event => {
 });
 
 function kgUnits(value) {
-  const text = String(value).trim();
+  const text = String(value ?? "").trim();
   if (!text) return 0;
   if (!/^[0-9]+(?:\.[0-9]{1,3})?$/.test(text)) return null;
   const [whole, fraction = ""] = text.split(".");
@@ -282,13 +302,89 @@ function formatKgUnits(units) {
   const fraction = String(units % 1000).padStart(3, "0").replace(/0+$/, "");
   return `${whole}${fraction ? `.${fraction}` : ""}`;
 }
+
+let setCard = null;
+function openSetWeight(card) {
+  if ($("allocation-set-dialog")?.open || $("allocation-add-dialog")?.open) return;
+  setCard = card;
+  const currentVal = card.querySelector("[data-allocated-weight]").value;
+  const base = kgUnits(currentVal);
+  $("allocation-set-form").reset();
+  const materialName = card.querySelector(".allocation-material-name")?.textContent || "Material";
+  $("allocation-set-title").textContent = `Set weight - ${materialName}`;
+  $("allocation-set-current").textContent = `${formatKgUnits(base !== null ? base : 0)} kg`;
+  $("allocation-set-kg").value = base !== null && base > 0 ? formatKgUnits(base) : "";
+  updateSetPreview();
+  $("allocation-set-dialog").showModal();
+  $("allocation-set-kg").focus({preventScroll:true});
+  $("allocation-set-kg").select();
+}
+function updateSetPreview() {
+  const text = $("allocation-set-kg").value.trim();
+  const units = kgUnits(text);
+  const valid = units !== null && units >= 0 && units <= 999999999999;
+  if (text === "" || units === 0) {
+    $("allocation-set-total").textContent = "0 kg";
+    $("allocation-set-apply").disabled = false;
+    const applyText = $("allocation-set-apply-text");
+    if (applyText) applyText.textContent = "Clear";
+    $("allocation-set-error").hidden = true;
+    return;
+  }
+  $("allocation-set-total").textContent = `${formatKgUnits(valid ? units : 0)} kg`;
+  $("allocation-set-apply").disabled = !valid;
+  const applyText = $("allocation-set-apply-text");
+  if (applyText) applyText.textContent = "Set kg";
+  const invalid = text !== "" && !valid;
+  $("allocation-set-error").hidden = !invalid;
+  $("allocation-set-error").textContent = invalid ? "Enter positive allocated kg with up to 3 decimal places." : "";
+}
+$("allocation-set-kg").addEventListener("input", updateSetPreview);
+$("allocation-set-form").addEventListener("submit", event => {
+  event.preventDefault();
+  if (!setCard) return;
+  const text = $("allocation-set-kg").value.trim();
+  const units = kgUnits(text);
+  const input = setCard.querySelector("[data-allocated-weight]");
+  if (text === "" || units === 0) {
+    input.value = "";
+    input.disabled = true;
+    input.required = false;
+    setCard.classList.remove("selected");
+    setCard.querySelector(".allocation-material-media")?.setAttribute("aria-pressed", "false");
+  } else if (units !== null && units > 0 && units <= 999999999999) {
+    input.disabled = false;
+    input.value = formatKgUnits(units);
+    input.required = true;
+    setCard.classList.add("selected");
+    setCard.querySelector(".allocation-material-media")?.setAttribute("aria-pressed", "true");
+  } else {
+    return;
+  }
+  input.dispatchEvent(new Event("input", {bubbles:true}));
+  input.dispatchEvent(new Event("change", {bubbles:true}));
+  updateAllocationProgress();
+  $("allocation-set-dialog").close();
+});
+$("allocation-set-cancel").addEventListener("click", () => $("allocation-set-dialog").close());
+$("allocation-set-dialog").addEventListener("close", () => {
+  const keyboard = $("allocation-set-dialog").querySelector(".screen-keyboard");
+  if (keyboard) keyboard.hidden = true;
+  setCard = null;
+});
+
 function openAdditionalWeight(card) {
+  if ($("allocation-set-dialog")?.open || $("allocation-add-dialog")?.open) return;
   const base = kgUnits(card.querySelector("[data-allocated-weight]").value);
-  if (base === null) { showMessage("Enter a valid allocated weight before adding kg.", true); return; }
+  if (base === null || base === 0) {
+    openSetWeight(card);
+    return;
+  }
   additionalCard = card;
   additionalBase = base;
   $("allocation-add-form").reset();
-  $("allocation-add-title").textContent = `Add weight - ${card.querySelector(".allocation-material-name").textContent}`;
+  const materialName = card.querySelector(".allocation-material-name")?.textContent || "Material";
+  $("allocation-add-title").textContent = `Add weight - ${materialName}`;
   $("allocation-add-current").textContent = `${formatKgUnits(base)} kg`;
   updateAdditionalPreview();
   $("allocation-add-dialog").showModal();
@@ -312,6 +408,8 @@ $("allocation-add-form").addEventListener("submit", event => {
   input.disabled = false;
   input.value = formatKgUnits(additionalBase + extra);
   input.dispatchEvent(new Event("input", {bubbles:true}));
+  input.dispatchEvent(new Event("change", {bubbles:true}));
+  updateAllocationProgress();
   $("allocation-add-dialog").close();
 });
 $("allocation-add-cancel").addEventListener("click", () => $("allocation-add-dialog").close());

@@ -22,9 +22,6 @@
       {% if can_access_settings %}<a class="icon-button main-settings-button" id="main-settings-button" href="/settings" title="Settings" aria-label="Settings">
         <img src="{{ url_for('static', filename='icons/settings.svg') }}" alt="" aria-hidden="true">
       </a>{% endif %}
-      <button class="icon-button main-product-info-button" id="main-product-info-button" type="button" title="Captured products" aria-label="Captured products" hidden>
-        <img src="{{ url_for('static', filename='icons/info.svg') }}" alt="" aria-hidden="true">
-      </button>
       <button class="complete-melt-button" id="complete-melt-button" type="button" hidden>Mark as completed (0)</button>
       <div class="maximized-live-controls" id="maximized-live-controls" hidden></div>
     </div>
@@ -90,7 +87,7 @@
       <div class="complete-dialog-actions"><button class="primary" type="submit">Close</button></div>
     </form>
   </dialog>
-  <script src="{{ url_for('static', filename='main.js', v='23') }}"></script>
+  <script src="{{ url_for('static', filename='main.js', v='24') }}"></script>
   <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>

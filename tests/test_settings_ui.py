@@ -63,6 +63,13 @@ class SettingsUITests(unittest.TestCase):
             session.clear()
         self.assertEqual(self.client.get('/settings').status_code, 302)
 
+    def test_main_screen_has_only_settings_icon_and_no_info_button(self):
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'id="main-settings-button"', response.data)
+        self.assertNotIn(b'id="main-product-info-button"', response.data)
+        self.assertNotIn(b'main-product-info-button', response.data)
+
 
 if __name__ == '__main__':
     unittest.main()

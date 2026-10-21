@@ -14,11 +14,9 @@ function setMainMaximized(maximized) {
     controls.before($("complete-melt-button"));
     controls.append(weight, $("main-status"), $("main-date-time"));
     if (settings) controls.append(settings);
-    controls.append($("main-product-info-button"));
   } else {
     $("main-weight-message").before(weight, $("main-status"), $("main-date-time"));
     if (settings) $("main-weight-message").after(settings);
-    $("main-weight-message").after($("main-product-info-button"));
     mainHeader.appendChild($("complete-melt-button"));
   }
 }
@@ -135,11 +133,10 @@ function restoreActiveMelt(melt) {
     furnaceId:String(melt.furnace_id), captureIds:melt.capture_ids, captures:melt.captures || [], totalWeight:melt.melt_total_weight} : null;
 }
 function updateProductStageActions() {
-  const inProducts = Boolean(mainState.furnace);
   const settings = $("main-settings-button");
+  if (settings) settings.hidden = false;
   const info = $("main-product-info-button");
-  if (settings) settings.hidden = inProducts;
-  if (info) info.hidden = !inProducts;
+  if (info) info.hidden = true;
 }
 async function showProductInfo() {
   if (mainState.activeMelt && !mainState.activeMelt.captures?.length) {
@@ -149,9 +146,9 @@ async function showProductInfo() {
   const list = $("product-info-list");
   const captures = mainState.activeMelt?.captures || [];
   list.innerHTML = captures.length ? captures.map((item, index) => `<div class="product-info-row"><strong>${index + 1}. ${escapeHtml(item.product_name || "Product")}</strong><span>${escapeHtml(item.weight)} kg</span></div>`).join("") : '<p class="empty">No products captured in this melt yet.</p>';
-  $("product-info-dialog").showModal();
+  $("product-info-dialog")?.showModal();
 }
-$("main-product-info-button").addEventListener("click", showProductInfo);
+$("main-product-info-button")?.addEventListener("click", showProductInfo);
 async function selectFurnace(button, recoveredMelt) {
   if (selectingFurnace) return;
   selectingFurnace = true;
