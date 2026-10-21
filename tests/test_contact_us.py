@@ -69,6 +69,20 @@ class ContactUsPageTests(unittest.TestCase):
             res = self.client.get(path)
             self.assertEqual(res.status_code, 302, f"Path {path} should require login")
 
+    def test_contact_us_accessible_by_operator_user(self):
+        with app.app_context():
+            conn = database_connection()
+            op_id = conn.execute(
+                "INSERT INTO users (username, password_hash, role, created_at) VALUES ('test_op', 'hash', 'user', '2026-01-01')"
+            ).lastrowid
+            conn.commit()
+            conn.close()
+        with self.client.session_transaction() as session:
+            session.update(user_id=op_id, username="test_op", role="user")
+        res = self.client.get("/contact-us")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('<h1>Contact Us</h1>', res.data.decode("utf-8"))
+
     def test_contact_us_css_is_served(self):
         res = self.client.get("/static/contact_us.css")
         self.assertEqual(res.status_code, 200)
