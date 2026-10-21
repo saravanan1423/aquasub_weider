@@ -70,6 +70,10 @@ class UsbBackupTests(unittest.TestCase):
         self.assertIn(b'id="backup-success-screen"', logs.data)
         self.assertIn(b'id="backup-success-countdown"', logs.data)
         self.assertIn(b'BACKUP COMPLETED SUCCESSFULLY', logs.data)
+        self.assertIn(b'backup-modal-card', logs.data)
+        self.assertIn(b'backup-illustration-box', logs.data)
+        self.assertNotIn(b'Cancel backup', logs.data)
+        self.assertNotIn(b'cancel-backup', logs.data)
 
     def test_unlisted_drive_is_rejected(self):
         with patch("core.usb_backup.mounted_usb_drives", return_value=[]):

@@ -115,13 +115,33 @@ byId('backup-history-next').addEventListener('click',()=>{historyPage++;loadHist
 setInterval(()=>{if (!document.hidden && !byId('backup-history-panel').hidden) loadHistory();},15000);
 
 let backupSuccessTimer = null;
-function showBackupScheduleSuccess() {
+let cachedDisplaySeconds = 10;
+
+async function getCaptureDisplaySeconds() {
+  try {
+    const response = await fetch("/api/capture-display-settings", { cache: "no-store" });
+    if (response.ok) {
+      const json = await response.json();
+      const val = Number(json.success_display_seconds);
+      if (!isNaN(val) && val >= 1 && val <= 300) {
+        cachedDisplaySeconds = val;
+        return val;
+      }
+    }
+  } catch (_) {}
+  return cachedDisplaySeconds || 10;
+}
+getCaptureDisplaySeconds().catch(() => {});
+
+async function showBackupScheduleSuccess() {
   const screen = byId('backup-success-screen');
   if (!screen) return;
   if (backupSuccessTimer) {
     clearInterval(backupSuccessTimer);
     backupSuccessTimer = null;
   }
+
+  const duration = await getCaptureDisplaySeconds();
 
   const freq = byId('backup-frequency').value;
   const isEnabled = byId('backup-enabled').checked;
@@ -140,11 +160,11 @@ function showBackupScheduleSuccess() {
   if (timeEl) timeEl.textContent = new Date().toLocaleString();
 
   const countdownEl = byId('backup-success-countdown');
-  if (countdownEl) countdownEl.textContent = "2";
+  if (countdownEl) countdownEl.textContent = duration;
 
   screen.hidden = false;
 
-  const deadline = Date.now() + 2000;
+  const deadline = Date.now() + duration * 1000;
   backupSuccessTimer = setInterval(() => {
     const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
     if (countdownEl) countdownEl.textContent = remaining;

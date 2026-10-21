@@ -260,13 +260,33 @@ setInterval(()=>{ if (!document.hidden) loadAutomaticBackupStatus(); }, 15000);
 
 
 let backupSuccessTimer = null;
-function showBackupSuccessScreen(data) {
+let cachedDisplaySeconds = 10;
+
+async function getCaptureDisplaySeconds() {
+  try {
+    const response = await fetch("/api/capture-display-settings", { cache: "no-store" });
+    if (response.ok) {
+      const json = await response.json();
+      const val = Number(json.success_display_seconds);
+      if (!isNaN(val) && val >= 1 && val <= 300) {
+        cachedDisplaySeconds = val;
+        return val;
+      }
+    }
+  } catch (_) {}
+  return cachedDisplaySeconds || 10;
+}
+getCaptureDisplaySeconds().catch(() => {});
+
+async function showBackupSuccessScreen(data) {
   const screen = document.getElementById("backup-success-screen");
   if (!screen) return;
   if (backupSuccessTimer) {
     clearInterval(backupSuccessTimer);
     backupSuccessTimer = null;
   }
+
+  const duration = await getCaptureDisplaySeconds();
 
   const driveEl = document.getElementById("backup-success-drive");
   if (driveEl) {
@@ -296,11 +316,11 @@ function showBackupSuccessScreen(data) {
   if (timeEl) timeEl.textContent = new Date().toLocaleString();
 
   const countdownEl = document.getElementById("backup-success-countdown");
-  if (countdownEl) countdownEl.textContent = "2";
+  if (countdownEl) countdownEl.textContent = duration;
 
   screen.hidden = false;
 
-  const deadline = Date.now() + 2000;
+  const deadline = Date.now() + duration * 1000;
   backupSuccessTimer = setInterval(() => {
     const secondsRemaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
     if (countdownEl) countdownEl.textContent = secondsRemaining;

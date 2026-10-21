@@ -29,7 +29,7 @@ def required_permissions():
     if path == "/material-allocation": return {"allocation"}
     if path.startswith("/api/material-allocations/"): return {"main", "allocation"} if method == "GET" else {"allocation"}
     if path == "/api/melt-threshold-settings": return {"admin"}
-    if path == "/api/capture-display-settings": return {"admin"} if method == "PUT" else {"main", "melts"}
+    if path == "/api/capture-display-settings": return {"admin"} if method == "PUT" else set()
     if path == "/images": return {"products"}
     if path == "/logs": return {"logs"}
     if path in {"/backup-settings", "/api/backup-settings"}: return {"backup"}
