@@ -21,6 +21,8 @@ def melt_settings_page(): return render_template("melt_number_settings.html")
 def material_allocation_page(): return render_template("material_allocation.html")
 
 @main_bp.get("/contact-us")
+@main_bp.get("/contactus")
+@main_bp.get("/contact")
 def contact_us_page(): return render_template("contact_us.html")
 
 @main_bp.get("/api/furnaces")

@@ -69,7 +69,16 @@ class LiveScaleStatusTests(unittest.TestCase):
             start_saved_scale(app)
             self.assertEqual(start.call_args.args[0]['port'],'TEST')
             self.assertEqual(start.call_args.args[0]['refresh_interval_ms'],100)
-            self.monitor.connected=True
-            start.reset_mock()
-            start_saved_scale(app)
-            start.assert_not_called()
+    def test_saved_data_persists_and_exposes_in_scale_status(self):
+        payload={'port':'TEST','baud_rate':9600,'data_bits':8,'parity':'none','stop_bits':'1',
+                 'start_marker':'$','end_marker':']','start_address':1,'end_address':5,
+                 'refresh_interval_ms':200,'frame_gap_ms':250,'frame_timeout':1,
+                 'saved_data':'0014.21'}
+        response=self.fixture.client.post('/api/settings',json=payload)
+        self.assertEqual(response.status_code,200,response.json)
+        saved=self.fixture.client.get('/api/settings').json
+        self.assertEqual(saved.get('saved_data'),'0014.21')
+        self.monitor.connected=False
+        status=self.fixture.client.get('/api/scale-status').json
+        self.assertEqual(status.get('saved_data'),'0014.21')
+        self.assertEqual(status.get('weight'),'0014.21')

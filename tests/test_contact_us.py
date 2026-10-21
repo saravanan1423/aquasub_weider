@@ -54,11 +54,20 @@ class ContactUsPageTests(unittest.TestCase):
         self.assertIn('Tamil Nadu, India', html)
         self.assertIn('service@weiderweighing.com', html)
 
+    def test_contact_us_url_aliases_render_successfully(self):
+        for alias in ("/contactus", "/contact"):
+            res = self.client.get(alias)
+            self.assertEqual(res.status_code, 200, f"Alias {alias} should return 200")
+            html = res.data.decode("utf-8")
+            self.assertIn('<h1>Contact Us</h1>', html)
+            self.assertIn('service@weiderweighing.com', html)
+
     def test_contact_us_requires_login(self):
         with self.client.session_transaction() as session:
             session.clear()
-        res = self.client.get("/contact-us")
-        self.assertEqual(res.status_code, 302)
+        for path in ("/contact-us", "/contactus", "/contact"):
+            res = self.client.get(path)
+            self.assertEqual(res.status_code, 302, f"Path {path} should require login")
 
     def test_contact_us_css_is_served(self):
         res = self.client.get("/static/contact_us.css")

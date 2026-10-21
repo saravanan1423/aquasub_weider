@@ -69,8 +69,13 @@ class SerialMonitor:
             start = stream.rfind(start_marker, 0, end)
             if start >= 0:
                 selected = stream[start + len(start_marker):end]
-                weight = selected[self.config.get("start_address", 1) - 1:self.config.get("end_address", len(selected))].strip()
-                if re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)", weight):
+                weight_candidate = selected[self.config.get("start_address", 1) - 1:self.config.get("end_address", len(selected))].strip()
+                if re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)", weight_candidate):
+                    weight = weight_candidate
+                else:
+                    match = re.search(r"[-+]?\d+(?:\.\d+)?", weight_candidate)
+                    weight = match.group(0) if match else None
+                if weight:
                     now = time.monotonic()
                     if (self._last_valid_weight_at is None
                             or self._stable_since is None
@@ -154,9 +159,12 @@ class SerialMonitor:
             # Require received readings spanning two seconds, not a single old sample.
             weight_stable = (scale_connected and self._stable_since is not None
                              and self._last_valid_weight_at - self._stable_since >= 2.0)
+            saved_data = str(self.config.get("saved_data", "")).strip()
             result = {"connected": self.connected, "connecting": self.connecting,
                     "weight_stable": weight_stable,
-                    "scale_connected": scale_connected, "weight": self._weight if scale_connected else "",
+                    "scale_connected": scale_connected,
+                    "weight": self._weight if scale_connected else (saved_data or ""),
+                    "saved_data": saved_data,
                     "last_frame_id": self._next_id - 1,
                     "error": self.error, "reading_timeout_seconds": timeout, "reading_age_seconds": age,
                     "refresh_interval_ms": self.config.get("refresh_interval_ms", 200)}

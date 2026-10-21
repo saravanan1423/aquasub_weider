@@ -68,6 +68,13 @@ async function loadSettings() {
     $("end-marker").value = saved.end_marker ?? "\\";
     $("start-address").value = saved.start_address ?? 4;
     $("end-address").value = saved.end_address ?? 10;
+    if (saved.saved_data) {
+      if ($("selected-data")) $("selected-data").textContent = saved.saved_data;
+      if ($("live-weight") && $("live-weight").textContent === "------") {
+        $("live-weight").textContent = saved.saved_data;
+        if ($("weight-state")) $("weight-state").textContent = "Saved calibration weight";
+      }
+    }
     renderAddressPicker();
     updateLiveWeight();
   } catch (error) { showError(error.message); }
@@ -85,6 +92,14 @@ function showError(message = "") {
 }
 
 function settingsPayload() {
+  const selectedDataEl = $("selected-data");
+  const liveWeightEl = $("live-weight");
+  let savedData = "";
+  if (selectedDataEl && selectedDataEl.textContent && selectedDataEl.textContent !== "—" && selectedDataEl.textContent !== "(empty)") {
+    savedData = selectedDataEl.textContent.trim();
+  } else if (liveWeightEl && liveWeightEl.textContent && liveWeightEl.textContent !== "------") {
+    savedData = liveWeightEl.textContent.trim();
+  }
   return {
     port: $("port").value,
     baud_rate: $("baud").value,
@@ -97,7 +112,8 @@ function settingsPayload() {
     start_marker: $("start-marker").value,
     end_marker: $("end-marker").value,
     start_address: $("start-address").value,
-    end_address: $("end-address").value
+    end_address: $("end-address").value,
+    saved_data: savedData
   };
 }
 

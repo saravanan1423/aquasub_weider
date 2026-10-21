@@ -95,9 +95,22 @@ def report_pdf(report):
              Spacer(1, 12), Paragraph(escape(total), styles["Heading3"])]
 
     def footer(canvas, doc):
-        logo = Path(__file__).resolve().parents[1] / "static" / "aqua-group-logo.png"
-        canvas.drawImage(str(logo), 30, landscape(A4)[1] - 62, width=114, height=38,
-                         preserveAspectRatio=True, mask="auto")
+        static_dir = Path(__file__).resolve().parents[1] / "static"
+        weider_logo = static_dir / "weider-logo.png"
+        aqua_logo = static_dir / "aqua-group-logo.png"
+        y_pos = landscape(A4)[1] - 62
+        x_cursor = 30
+        if weider_logo.exists():
+            canvas.drawImage(str(weider_logo), x_cursor, y_pos, width=50, height=36,
+                             preserveAspectRatio=True, mask="auto")
+            x_cursor += 56
+            canvas.setStrokeColor(colors.HexColor("#94a3b8"))
+            canvas.setLineWidth(1)
+            canvas.line(x_cursor, y_pos + 4, x_cursor, y_pos + 32)
+            x_cursor += 10
+        if aqua_logo.exists():
+            canvas.drawImage(str(aqua_logo), x_cursor, y_pos + 3, width=82, height=28,
+                             preserveAspectRatio=True, mask="auto")
         canvas.setFont("Helvetica", 8)
         canvas.setFillColor(colors.HexColor("#52665e"))
         canvas.drawRightString(landscape(A4)[0] - 30, 18, f"Page {doc.page}")

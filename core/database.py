@@ -25,6 +25,7 @@ def initialize_database(app):
                 frame_timeout REAL NOT NULL DEFAULT 1.0,
                 refresh_interval_ms INTEGER NOT NULL DEFAULT 200,
                 frame_gap_ms INTEGER NOT NULL DEFAULT 250,
+                saved_data TEXT DEFAULT '',
                 created_by TEXT NOT NULL DEFAULT 'Unknown',
                 updated_at TEXT NOT NULL
             );
@@ -176,6 +177,8 @@ def initialize_database(app):
             connection.execute("ALTER TABLE serial_settings ADD COLUMN refresh_interval_ms INTEGER NOT NULL DEFAULT 200")
         if "frame_gap_ms" not in serial_columns:
             connection.execute("ALTER TABLE serial_settings ADD COLUMN frame_gap_ms INTEGER NOT NULL DEFAULT 250")
+        if "saved_data" not in serial_columns:
+            connection.execute("ALTER TABLE serial_settings ADD COLUMN saved_data TEXT DEFAULT ''")
         if "created_by" not in serial_columns:
             connection.execute("ALTER TABLE serial_settings ADD COLUMN created_by TEXT NOT NULL DEFAULT 'Unknown'")
         image_columns = {row[1] for row in connection.execute("PRAGMA table_info(product_images)")}
