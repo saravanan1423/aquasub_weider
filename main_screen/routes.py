@@ -75,6 +75,21 @@ def threshold_setting(value, label):
         raise ValueError(f"{label} must be greater than 0 and at most 999999999.999 kg")
     return format(amount, "f")
 
+
+def threshold_percent_setting(value):
+    if value is None or str(value).strip() == "":
+        return None
+    text = str(value).strip()
+    if not re.fullmatch(r"\d+(?:\.\d{1,2})?", text):
+        raise ValueError("Excessive threshold percentage must be a number between 0 and 100 with up to 2 decimal places")
+    try:
+        amount = Decimal(text)
+    except InvalidOperation as error:
+        raise ValueError("Enter a valid threshold percentage") from error
+    if not Decimal(0) <= amount <= Decimal("100"):
+        raise ValueError("Excessive threshold percentage must be between 0 and 100%")
+    return f"{amount:f}".rstrip('0').rstrip('.') if '.' in f"{amount:f}" else str(amount)
+
 def furnace_prefix(name):
     value = str(name or "").strip()
     trailing = re.search(r"([A-Za-z])\s*$", value)
@@ -107,30 +122,39 @@ def melt_number_settings():
 def melt_threshold_settings():
     with database_connection() as connection:
         row = connection.execute(
-            "SELECT individual_threshold_kg, melt_threshold_kg FROM melt_threshold_settings WHERE id=1"
+            "SELECT individual_threshold_kg, melt_threshold_kg, threshold_percent FROM melt_threshold_settings WHERE id=1"
         ).fetchone()
     if request.method == "GET":
-        return jsonify(dict(row) if row else {"individual_threshold_kg": None, "melt_threshold_kg": None})
+        if not row:
+            return jsonify({"individual_threshold_kg": None, "melt_threshold_kg": None})
+        data = dict(row)
+        if "threshold_percent" in data and data["threshold_percent"] is None:
+            del data["threshold_percent"]
+        return jsonify(data)
 
     payload = request.get_json(silent=True) or {}
     try:
         individual_threshold = threshold_setting(payload.get("individual_threshold_kg"), "Individual threshold")
         melt_threshold = threshold_setting(payload.get("melt_threshold_kg"), "Total melt threshold")
+        threshold_percent = threshold_percent_setting(payload.get("threshold_percent")) if "threshold_percent" in payload else (row["threshold_percent"] if row and "threshold_percent" in row.keys() else None)
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
     updated_at = datetime.now().astimezone().isoformat(timespec="seconds")
     with database_connection() as connection:
         connection.execute("""
             INSERT INTO melt_threshold_settings (
-                id, individual_threshold_kg, melt_threshold_kg, updated_at
-            ) VALUES (1, ?, ?, ?)
+                id, individual_threshold_kg, melt_threshold_kg, threshold_percent, updated_at
+            ) VALUES (1, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 individual_threshold_kg=excluded.individual_threshold_kg,
                 melt_threshold_kg=excluded.melt_threshold_kg,
+                threshold_percent=excluded.threshold_percent,
                 updated_at=excluded.updated_at
-        """, (individual_threshold, melt_threshold, updated_at))
+        """, (individual_threshold, melt_threshold, threshold_percent, updated_at))
     before = dict(row) if row else {}
     after = {"individual_threshold_kg": individual_threshold, "melt_threshold_kg": melt_threshold}
+    if "threshold_percent" in payload or (row and row["threshold_percent"] is not None):
+        after["threshold_percent"] = threshold_percent
     record_changes("melt_threshold_settings", 1, "update", before, after)
     return jsonify({"ok": True, **after})
 
@@ -272,8 +296,11 @@ def allocation_context(connection, furnace):
         product_id = row["product_image_id"]
         captured[product_id] = captured.get(product_id, Decimal(0)) + (weight_amount(row["weight"]) or Decimal(0))
     main_completed_at = allocation["main_completed_at"] if allocation else None
+    thresh_row = connection.execute("SELECT threshold_percent FROM melt_threshold_settings WHERE id=1").fetchone()
+    threshold_percent = thresh_row["threshold_percent"] if thresh_row and thresh_row["threshold_percent"] is not None else None
     return {"furnace_id": furnace["id"], "melt_number": number, "melt_serial": serial, "configured": configured,
             "main_completed_at": main_completed_at,
+            "threshold_percent": threshold_percent,
             "status": "awaiting_verification" if main_completed_at else "allocated" if configured else "not_allocated",
             "total_captured_kg": format(sum(captured.values(), Decimal(0)), "f"),
             "materials": [{**dict(row), "captured_kg": format(captured.get(row["id"], Decimal(0)), "f")}
@@ -459,11 +486,26 @@ def create_weight_capture():
                 (str(furnace_id), melt_number, image_id),
             ).fetchall()
             material_total = sum((weight_amount(row["weight"]) or Decimal(0) for row in rows), Decimal(0))
-            limit = Decimal(material["allocated_kg"])
+            base_allocated = Decimal(material["allocated_kg"])
+            thresh_row = connection.execute("SELECT threshold_percent FROM melt_threshold_settings WHERE id=1").fetchone()
+            thresh_pct = Decimal(thresh_row["threshold_percent"]) if thresh_row and thresh_row["threshold_percent"] is not None else Decimal(0)
+            limit = base_allocated * (Decimal(1) + thresh_pct / Decimal(100))
             if material_total + amount > limit:
-                return jsonify({"ok": False, "code": "allocation_exceeded", "error":
-                    f'{image["image_name"]} in melt {melt_number} would total {material_total + amount} kg, '
-                    f'above its allocated {limit} kg. Contact admin.'}), 409
+                def clean_dec(d):
+                    s = format(d, "f")
+                    return s.rstrip("0").rstrip(".") if "." in s else s
+
+                if thresh_pct > 0:
+                    error_msg = (
+                        f'{image["image_name"]} in melt {melt_number} would total {clean_dec(material_total + amount)} kg, '
+                        f'above the {clean_dec(limit)} kg limit ({clean_dec(base_allocated)} kg allocated + {clean_dec(thresh_pct)}% threshold). Contact admin.'
+                    )
+                else:
+                    error_msg = (
+                        f'{image["image_name"]} in melt {melt_number} would total {clean_dec(material_total + amount)} kg, '
+                        f'above its allocated {clean_dec(limit)} kg. Contact admin.'
+                    )
+                return jsonify({"ok": False, "code": "allocation_exceeded", "error": error_msg}), 409
         settings = connection.execute(
             "SELECT individual_threshold_kg, melt_threshold_kg FROM melt_threshold_settings WHERE id=1"
         ).fetchone()

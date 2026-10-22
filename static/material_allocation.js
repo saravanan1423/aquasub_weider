@@ -390,6 +390,7 @@ function openAdditionalWeight(card) {
   $("allocation-add-dialog").showModal();
   $("allocation-add-kg").focus({preventScroll:true});
 }
+
 function updateAdditionalPreview() {
   const extra = kgUnits($("allocation-add-kg").value);
   const valid = extra !== null && extra > 0 && additionalBase + extra <= 999999999999;
@@ -399,6 +400,7 @@ function updateAdditionalPreview() {
   $("allocation-add-error").hidden = !invalid;
   $("allocation-add-error").textContent = invalid ? "Enter positive additional kg with up to 3 decimal places, within the allocation limit." : "";
 }
+
 $("allocation-add-kg").addEventListener("input", updateAdditionalPreview);
 $("allocation-add-form").addEventListener("submit", event => {
   event.preventDefault();

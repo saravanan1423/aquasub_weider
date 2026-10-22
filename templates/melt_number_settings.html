@@ -34,6 +34,9 @@
               step="0.001"></div>
           <div class="field"><label for="melt-threshold">Total melt limit (kg)</label><input id="melt-threshold"
               name="melt_threshold_kg" type="number" min="0.001" max="999999999.999" step="0.001"></div>
+          <div class="field"><label for="threshold-percent">Excessive threshold (%)</label><input
+              id="threshold-percent" name="threshold_percent" type="number" min="0" max="100" step="0.1"
+              placeholder="e.g. 30"></div>
           <button class="primary" type="submit">Save</button>
         </form>
         <div class="shift-message" id="melt-threshold-message" role="status" hidden></div>
@@ -45,7 +48,7 @@
       <div class="shift-message" id="melt-settings-message" hidden></div>
     </section>
   </main>
-  <script src="{{ url_for('static', filename='melt_number_settings.js', v='3') }}"></script>
+  <script src="{{ url_for('static', filename='melt_number_settings.js', v='4') }}"></script>
   <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}"
     data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>

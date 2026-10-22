@@ -104,6 +104,7 @@ def initialize_database(app):
                 id INTEGER PRIMARY KEY CHECK (id = 1),
                 individual_threshold_kg TEXT,
                 melt_threshold_kg TEXT,
+                threshold_percent TEXT,
                 updated_at TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS capture_display_settings (
@@ -232,6 +233,9 @@ def initialize_database(app):
                 ) SELECT 1, individual_threshold_kg, melt_threshold_kg, updated_at
                   FROM device_settings WHERE id=1
             """)
+        melt_threshold_columns = {row[1] for row in connection.execute("PRAGMA table_info(melt_threshold_settings)")}
+        if "threshold_percent" not in melt_threshold_columns:
+            connection.execute("ALTER TABLE melt_threshold_settings ADD COLUMN threshold_percent TEXT")
         admin = connection.execute("SELECT id, password_hash FROM users WHERE username='admin'").fetchone()
         if admin is None:
             connection.execute(

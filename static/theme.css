@@ -316,10 +316,17 @@ body:has(.numeric-keyboard:not([hidden])) .screen-keyboard.numeric-keyboard .key
 .allocation-add-dialog { width:min(480px,calc(100% - 24px)); max-height:calc(100dvh - 24px); overflow:auto; padding:20px; color:var(--text); background:#fff; border:1px solid var(--line); border-radius:8px; box-shadow:0 15px 60px #064e3b26; }
 .allocation-add-dialog form { display:grid; gap:14px; }
 .allocation-add-dialog h2 { margin:0; font-size:23px; }
-.allocation-add-summary { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:10px; background:#edf5f2; border-radius:5px; }
+.allocation-add-summary { display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); gap:12px; padding:10px; background:#edf5f2; border-radius:5px; }
 .allocation-add-summary small { display:block; color:var(--muted); font-size:13px; font-weight:700; }
 .allocation-add-summary strong { display:block; margin-top:4px; font-size:24px; overflow-wrap:anywhere; }
+.allocation-add-inputs { display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start; }
+.allocation-add-inputs:has(#allocation-add-percent-field[hidden]) { grid-template-columns:1fr; }
 .allocation-add-dialog input { font-size:23px; height:44px; }
+.allocation-quick-percents { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.quick-percent-btn { padding:6px 12px; border:1px solid var(--line, #c4d9df); border-radius:6px; background:#f0fdf4; color:#065f46; font-size:14px; font-weight:700; cursor:pointer; transition:all 0.15s ease; user-select:none; }
+.quick-percent-btn:hover { background:#dcfce7; border-color:#059669; }
+.quick-percent-btn.is-max { background:#fef3c7; color:#92400e; border-color:#f59e0b; }
+.quick-percent-btn.is-max:hover { background:#fde68a; }
 .allocation-add-actions { display:flex; justify-content:flex-end; gap:10px; }
 .allocation-add-actions button { display:flex; align-items:center; justify-content:center; gap:6px; min-width:95px; font-size:16px; }
 .allocation-add-actions .ui-icon { width:20px; height:20px; }
@@ -389,6 +396,8 @@ body:has(.numeric-keyboard:not([hidden])) .screen-keyboard.numeric-keyboard .key
 }
 .product-choice:disabled { opacity:.45; cursor:not-allowed; }
 .product-choice .material-allowance { margin-left:auto; color:var(--muted); font-size:13px; font-weight:700; }
+.product-choice .material-allowance.excessive { color:#ea580c; font-weight:800; }
+.product-choice:has(.material-allowance.excessive) { border-color:#fb923c; }
 .product-choice:has(.material-allowance) > span { display:flex; align-items:center; gap:4px; padding:6px 8px; }
 @media(max-width:900px) {
   .material-allocation-page h1 { font-size:22px; }

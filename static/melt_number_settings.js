@@ -28,6 +28,9 @@ async function loadThresholdSettings() {
   const settings = await jsonFetch("/api/melt-threshold-settings");
   form.elements.individual_threshold_kg.value = settings.individual_threshold_kg ?? "";
   form.elements.melt_threshold_kg.value = settings.melt_threshold_kg ?? "";
+  if (form.elements.threshold_percent) {
+    form.elements.threshold_percent.value = settings.threshold_percent ?? "";
+  }
 }
 async function loadMeltSettings() {
   const furnaces = await jsonFetch("/api/melt-number-settings");
@@ -98,7 +101,8 @@ if ($("melt-threshold-form")) {
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
           individual_threshold_kg: form.elements.individual_threshold_kg.value,
-          melt_threshold_kg: form.elements.melt_threshold_kg.value
+          melt_threshold_kg: form.elements.melt_threshold_kg.value,
+          threshold_percent: form.elements.threshold_percent ? form.elements.threshold_percent.value : ""
         })
       });
       showThresholdMessage("Weight thresholds saved");

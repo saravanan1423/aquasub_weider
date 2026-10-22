@@ -362,10 +362,11 @@ button:hover { border-color:#48635b; }.primary { border:0; min-width:118px; colo
 .capture-display-settings form { display:grid; grid-template-columns:minmax(180px,250px) 90px; gap:12px; align-items:end; }
 .melt-threshold-settings { margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--line); }
 .melt-threshold-settings h2 { margin:0 0 10px; font-size:16px; }
-.melt-threshold-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)) auto; gap:12px; align-items:end; }
+.melt-threshold-form { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)) auto; gap:12px; align-items:end; }
 .melt-threshold-form .field { min-width:0; }
 .melt-threshold-form button { min-width:90px; }
-@media(max-width:650px) { .melt-threshold-form { grid-template-columns:1fr 1fr; }.melt-threshold-form button { grid-column:2; } }
+@media(max-width:850px) { .melt-threshold-form { grid-template-columns:repeat(2,1fr); } .melt-threshold-form button { grid-column:1 / -1; justify-self:start; } }
+@media(max-width:550px) { .melt-threshold-form { grid-template-columns:1fr; } }
 @media(max-width:650px) { .melt-setting-row { grid-template-columns:1fr 1fr; gap:10px; }.melt-setting-row .field { grid-column:1; }.melt-setting-row button { grid-column:2; } }
 
 .device-settings-page { max-width:960px; }

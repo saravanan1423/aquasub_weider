@@ -50,6 +50,11 @@ function numericWeight(value) {
 function formatWeight(value) {
   return Number(value || 0).toFixed(3).replace(/\.?0+$/, "");
 }
+function formatAllowanceWeight(value) {
+  if (value === null || value === undefined || value === "") return "0";
+  const num = Number(value);
+  return isNaN(num) ? String(value) : num.toFixed(3).replace(/\.?0+$/, "");
+}
 function updateCompleteButtons() {
   const count = mainState.activeMelt?.captureIds.length || 0;
   const visible = count > 0;
@@ -90,8 +95,14 @@ function showFurnaceProducts() {
   grid.innerHTML = products.length ? products.map(item => {
     const material = mainState.allocation?.materials.find(row => row.id === item.id);
     const disabled = !mainState.allocation?.configured || mainState.allocation?.status === "awaiting_verification" || !material || material.allocated_kg === null;
-    const weight = material?.allocated_kg !== null && material?.allocated_kg !== undefined
-      ? `<small class="material-allowance">${escapeHtml(material.captured_kg)} / ${escapeHtml(material.allocated_kg)} kg</small>` : "";
+    let weight = "";
+    if (material?.allocated_kg !== null && material?.allocated_kg !== undefined) {
+      const capturedNum = Number(material.captured_kg || 0);
+      const allocatedNum = Number(material.allocated_kg || 0);
+      const isExcessive = capturedNum > allocatedNum;
+      const allowanceClass = isExcessive ? "material-allowance excessive" : "material-allowance";
+      weight = `<small class="${allowanceClass}">${escapeHtml(formatAllowanceWeight(material.captured_kg))} / ${escapeHtml(formatAllowanceWeight(material.allocated_kg))} kg</small>`;
+    }
     return `<button class="product-choice" data-id="${item.id}" type="button" ${disabled ? 'disabled title="Not allocated to this melt"' : ""}><img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(item.image_name)}"><span>${escapeHtml(item.image_name)}${weight}</span></button>`;
   }).join("") : '<p class="gallery-empty">No products have been added to this furnace.</p>';
   document.querySelectorAll(".product-choice").forEach(button => button.addEventListener("click", () => captureWeight(button)));
@@ -193,6 +204,23 @@ async function captureWeight(button) {
   const message = $("capture-message"); message.hidden = true; button.disabled = true;
   try {
     if (!mainState.furnace) throw new Error("Select a furnace before selecting an image");
+    const material = mainState.allocation?.materials.find(row => row.id === Number(button.dataset.id));
+    const threshPct = Number(mainState.allocation?.threshold_percent) || 0;
+    if (material && material.allocated_kg !== null && material.allocated_kg !== undefined) {
+      const allocatedKg = Number(material.allocated_kg);
+      const capturedKg = Number(material.captured_kg || 0);
+      const limitKg = allocatedKg * (1 + threshPct / 100);
+      if (capturedKg >= limitKg) {
+        const prodName = button.querySelector("span")?.childNodes[0]?.textContent?.trim() || "Material";
+        const err = new Error(
+          threshPct > 0
+            ? `${prodName} in melt ${mainState.allocation?.melt_number || ""} has already reached its limit of ${formatAllowanceWeight(limitKg)} kg (${formatAllowanceWeight(allocatedKg)} kg allocated + ${threshPct}% threshold). Contact admin.`
+            : `${prodName} in melt ${mainState.allocation?.melt_number || ""} has already reached its allocated ${formatAllowanceWeight(allocatedKg)} kg. Contact admin.`
+        );
+        err.code = "allocation_exceeded";
+        throw err;
+      }
+    }
     if (!mainState.weight) throw new Error("Wait for a live weight before capturing");
     if (Number(mainState.weight) <= 0) throw new Error("Weight must be greater than zero to capture");
     if (!mainState.weightStable) throw new Error("Wait for the weight to remain unchanged for 2 seconds before capturing");
