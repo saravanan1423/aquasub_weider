@@ -77,12 +77,10 @@ function setStatus(connected, connecting = false, error = "") {
 window.ScaleStatus.subscribe(data => {
   setStatus(data.scale_connected, data.connecting, data.error);
   mainState.lastId = data.last_frame_id;
-  const currentWeight = (data.scale_connected && data.weight)
-    ? data.weight
-    : (data.saved_data || mainState.settings?.saved_data || data.weight || "");
+  const currentWeight = (data.scale_connected && data.weight) ? data.weight : "";
   mainState.weight = currentWeight;
-  mainState.weightStable = Boolean(data.scale_connected ? data.weight_stable : (currentWeight !== ""));
-  $("main-live-weight").textContent = currentWeight || "------";
+  mainState.weightStable = Boolean(data.scale_connected && data.weight_stable);
+  $("main-live-weight").textContent = currentWeight || "----";
 });
 async function loadProducts() {
   mainState.products = (await requestJson("/api/product-images")).filter(item => item.image_type === "product");
@@ -369,15 +367,6 @@ async function initializeMain() {
     mainState.settings = await requestJson("/api/settings");
     const displaySettings = await requestJson("/api/capture-display-settings").catch(() => ({success_display_seconds: 10}));
     mainState.successSeconds = displaySettings.success_display_seconds;
-    if (mainState.settings?.saved_data) {
-      if ($("main-live-weight").textContent === "------" || !$("main-live-weight").textContent) {
-        $("main-live-weight").textContent = mainState.settings.saved_data;
-      }
-      if (!mainState.weight) {
-        mainState.weight = mainState.settings.saved_data;
-        mainState.weightStable = true;
-      }
-    }
     if (!mainState.settings.id) throw new Error("Save communication settings before using the Main Screen");
     const status = await requestJson("/api/data?after=0");
     if (!status.connected && !status.connecting) await requestJson("/api/connect", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(mainState.settings)});

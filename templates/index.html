@@ -103,7 +103,7 @@
           <div class="picker-output-card output-weight">
             <span class="output-label">LIVE PARSED WEIGHT</span>
             <div class="output-value-row">
-              <strong id="live-weight">------</strong>
+              <strong id="live-weight">----</strong>
               <small>kg</small>
             </div>
             <span class="output-sub" id="weight-state">Waiting for matching frame</span>
@@ -145,7 +145,7 @@
     </section>
     <p class="footnote">Frames end at CR/LF; continuous and undelimited data is handled automatically.</p>
   </main>
-  <script src="{{ url_for('static', filename='app.js', v='5') }}"></script>
+  <script src="{{ url_for('static', filename='app.js', v='7') }}"></script>
   <script src="{{ url_for('static', filename='fullscreen.js', v='6') }}" data-admin="{{ 'true' if is_admin else 'false' }}"></script>
   <script src="{{ url_for('static', filename='keyboard.js') }}"></script>
 </body>

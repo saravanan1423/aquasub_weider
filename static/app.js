@@ -70,10 +70,6 @@ async function loadSettings() {
     $("end-address").value = saved.end_address ?? 10;
     if (saved.saved_data) {
       if ($("selected-data")) $("selected-data").textContent = saved.saved_data;
-      if ($("live-weight") && $("live-weight").textContent === "------") {
-        $("live-weight").textContent = saved.saved_data;
-        if ($("weight-state")) $("weight-state").textContent = "Saved calibration weight";
-      }
     }
     renderAddressPicker();
     updateLiveWeight();
@@ -97,7 +93,7 @@ function settingsPayload() {
   let savedData = "";
   if (selectedDataEl && selectedDataEl.textContent && selectedDataEl.textContent !== "—" && selectedDataEl.textContent !== "(empty)") {
     savedData = selectedDataEl.textContent.trim();
-  } else if (liveWeightEl && liveWeightEl.textContent && liveWeightEl.textContent !== "------") {
+  } else if (liveWeightEl && liveWeightEl.textContent && liveWeightEl.textContent !== "------" && liveWeightEl.textContent !== "----") {
     savedData = liveWeightEl.textContent.trim();
   }
   return {
@@ -288,10 +284,12 @@ function renderAddressPicker() {
     subEl.textContent = `Characters ${startAddress}–${endAddress}`;
   }
 
-  // If live scale is not sending or offline, parse preview weight directly from selected data
+  // If disconnected, ensure live weight shows ----
   const trimmed = selectedStr.trim();
-  if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(trimmed)) {
-    if (!state.connected || $("live-weight").textContent === "------") {
+  if (!state.connected) {
+    if ($("live-weight")) $("live-weight").textContent = "----";
+  } else if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(trimmed)) {
+    if ($("live-weight").textContent === "----" || $("live-weight").textContent === "------") {
       $("live-weight").textContent = trimmed;
       $("weight-state").textContent = `Extracted from characters ${startAddress}–${endAddress}`;
     }
@@ -370,6 +368,8 @@ function updateLiveWeight() {
   }
   if (state.connected) {
     $("weight-state").textContent = "Waiting for a matching value";
+  } else {
+    $("live-weight").textContent = "----";
   }
 }
 
@@ -420,9 +420,9 @@ async function poll() {
     state.lastId = data.last_frame_id;
     if (data.scale_connected) {
       $("live-weight").textContent = data.weight;
-    } else if (!state.connected && $("live-weight").textContent === "------") {
-      $("live-weight").textContent = "------";
-      $("weight-state").textContent = "Waiting for a valid weight";
+    } else {
+      $("live-weight").textContent = "----";
+      if ($("weight-state")) $("weight-state").textContent = "Waiting for a valid weight";
       state.rawStream = "";
     }
   } catch (error) {
@@ -437,6 +437,8 @@ if (window.ScaleStatus) {
     updateStatus(data);
     if (data.scale_connected) {
       $("live-weight").textContent = data.weight;
+    } else {
+      $("live-weight").textContent = "----";
     }
   });
 }
@@ -564,7 +566,7 @@ function initListeners() {
     if ($("byte-count")) $("byte-count").textContent = "0";
     if ($("latest")) $("latest").textContent = "—";
     redraw();
-    $("live-weight").textContent = "------";
+    $("live-weight").textContent = "----";
     $("selected-data").textContent = "—";
     $("weight-state").textContent = "Waiting for a matching value";
   });

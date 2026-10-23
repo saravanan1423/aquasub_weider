@@ -16,12 +16,12 @@
     emit(data);
     if (data.scale_connected) expiryTimer=setTimeout(()=>{
       validUntil=0;
-      emit({...latest,scale_connected:false,weight_stable:false,weight:latest?.saved_data || '',error:'No valid scale readings received within the connection timeout.'});
+      emit({...latest,scale_connected:false,weight_stable:false,weight:'',error:'No valid scale readings received within the connection timeout.'});
     },remaining);
   }
   function reportError(error) {
     const connected=Boolean(latest?.scale_connected && performance.now()<validUntil);
-    emit({...latest,scale_connected:connected,weight_stable:false,weight:connected ? latest.weight : (latest?.saved_data || ''),error:error.message});
+    emit({...latest,scale_connected:connected,weight_stable:false,weight:connected ? latest.weight : '',error:error.message});
   }
   async function poll() {
     if (polling || stopped || rawPage) return;

@@ -37,7 +37,7 @@ class LiveScaleStatusTests(unittest.TestCase):
 
     def test_live_display_is_only_on_main_screen(self):
         main=self.fixture.client.get('/')
-        self.assertIn(b'id="main-live-weight"',main.data)
+        self.assertIn(b'id="main-live-weight">----</strong>',main.data)
         self.assertIn(b'id="main-status"',main.data)
         self.assertIn(b'scale_status.js',main.data)
         for path in ('/settings','/logs','/backup-settings','/users','/shifts','/melt-settings','/device-settings','/material-allocation'):
@@ -81,4 +81,5 @@ class LiveScaleStatusTests(unittest.TestCase):
         self.monitor.connected=False
         status=self.fixture.client.get('/api/scale-status').json
         self.assertEqual(status.get('saved_data'),'0014.21')
-        self.assertEqual(status.get('weight'),'0014.21')
+        self.assertEqual(status.get('weight'),'')
+        self.assertFalse(status.get('scale_connected'))

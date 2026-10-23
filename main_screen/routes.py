@@ -433,7 +433,7 @@ def create_weight_capture():
     except (TypeError, ValueError): return jsonify({"ok": False, "error": "Select a valid product image"}), 400
     try: furnace_id=int(payload.get("furnace_id"))
     except (TypeError,ValueError): return jsonify({"ok": False, "error": "Select a valid furnace before selecting an image"}), 400
-    if not weight or weight == "------": return jsonify({"ok": False, "error": "Wait for a live weight before selecting an image"}), 400
+    if not weight or weight in ("----", "------") or not weight.replace("-", "").strip(): return jsonify({"ok": False, "error": "Wait for a live weight before selecting an image"}), 400
     amount = Decimal(weight) if re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)", weight) else None
     if amount is None or amount <= 0:
         return jsonify({"ok": False, "error": "Weight must be greater than zero to capture"}), 400

@@ -163,7 +163,7 @@ class SerialMonitor:
             result = {"connected": self.connected, "connecting": self.connecting,
                     "weight_stable": weight_stable,
                     "scale_connected": scale_connected,
-                    "weight": self._weight if scale_connected else (saved_data or ""),
+                    "weight": self._weight if scale_connected else "",
                     "saved_data": saved_data,
                     "last_frame_id": self._next_id - 1,
                     "error": self.error, "reading_timeout_seconds": timeout, "reading_age_seconds": age,
