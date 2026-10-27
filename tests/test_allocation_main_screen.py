@@ -94,5 +94,58 @@ class AllocationMainScreenTests(unittest.TestCase):
         self.assertIn(b'href="/material-allocation"', page.data)
         self.assertIn(b'<b>Material Allocation</b>', page.data)
 
+    def test_api_users_persists_keyboard_enabled(self):
+        res = self.admin.post('/api/users', json={
+            'username': 'keyboard_user',
+            'password': 'password123',
+            'permissions': ['main'],
+            'keyboard_enabled': False
+        })
+        self.assertEqual(res.status_code, 201)
+        user_id = res.json['id']
+
+        # Verify GET /api/users returns keyboard_enabled=False
+        users = self.admin.get('/api/users').json
+        user = next(u for u in users if u['id'] == user_id)
+        self.assertFalse(user['keyboard_enabled'])
+
+        # Update to keyboard_enabled=True
+        put_res = self.admin.put(f'/api/users/{user_id}', json={
+            'username': 'keyboard_user',
+            'permissions': ['main'],
+            'keyboard_enabled': True
+        })
+        self.assertEqual(put_res.status_code, 200)
+
+        users = self.admin.get('/api/users').json
+        user = next(u for u in users if u['id'] == user_id)
+        self.assertTrue(user['keyboard_enabled'])
+
+    def test_page_renders_keyboard_dataset_based_on_user(self):
+        # Admin has keyboard_enabled=True by default
+        admin_page = self.admin.get('/')
+        self.assertIn(b'dataset.keyboard = "true"', admin_page.data)
+
+        # Create a user with keyboard_enabled=False
+        self.admin.post('/api/users', json={
+            'username': 'nokeyboard',
+            'password': 'password123',
+            'permissions': ['main'],
+            'keyboard_enabled': False
+        })
+
+        client = app.test_client()
+        login_res = client.post('/login', data={'username': 'nokeyboard', 'password': 'password123'})
+        self.assertEqual(login_res.status_code, 302)
+
+        page = client.get('/')
+        self.assertEqual(page.status_code, 200)
+        self.assertIn(b'dataset.keyboard = "false"', page.data)
+
+        shift_res = client.get('/api/current-shift')
+        self.assertEqual(shift_res.status_code, 200)
+        self.assertFalse(shift_res.json.get('keyboard_enabled'))
+
 if __name__ == '__main__':
     unittest.main()
+

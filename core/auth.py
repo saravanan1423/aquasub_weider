@@ -16,6 +16,7 @@ def current_user_access():
             return None, set()
         user = dict(user)
         user["default_screen"] = user.get("default_screen") or "main"
+        user["keyboard_enabled"] = bool(user.get("keyboard_enabled", 1))
         permissions = {row["screen"] for row in connection.execute("SELECT screen FROM user_permissions WHERE user_id=?", (user["id"],))}
     return user, (SCREENS if user["role"] == "admin" else permissions)
 
@@ -82,10 +83,12 @@ def register_auth(app):
     def navigation_access():
         user, permissions = current_user_access()
         default_screen = user.get("default_screen", "main") if user else "main"
+        keyboard_enabled = bool(user.get("keyboard_enabled", 1)) if user else True
         return {
             "current_username": user["username"] if user else "",
             "is_admin": bool(user and user["role"] == "admin"),
             "user_default_screen": default_screen,
+            "keyboard_enabled": keyboard_enabled,
             "can_access_settings": bool(user and (user["role"] == "admin" or "settings" in permissions or SETTINGS_SCREENS.intersection(permissions))),
             "can_access": lambda screen: bool(user and (user["role"] == "admin" or screen in permissions)),
         }

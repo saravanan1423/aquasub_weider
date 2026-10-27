@@ -41,6 +41,33 @@ let successTimer = null;
 let pendingCaptureId = null;
 let selectingFurnace = false;
 let capturingWeight = false;
+let messageTimer = null;
+function showMessage(text, type = "failure", duration = 2000) {
+  const message = $("capture-message");
+  if (!message) return;
+  if (messageTimer) {
+    clearTimeout(messageTimer);
+    messageTimer = null;
+  }
+  message.className = `capture-message ${type}`;
+  message.textContent = text;
+  message.hidden = false;
+  if (duration > 0) {
+    messageTimer = setTimeout(() => {
+      message.hidden = true;
+      messageTimer = null;
+    }, duration);
+  }
+}
+function hideMessage() {
+  const message = $("capture-message");
+  if (!message) return;
+  if (messageTimer) {
+    clearTimeout(messageTimer);
+    messageTimer = null;
+  }
+  message.hidden = true;
+}
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 async function requestJson(url, options = {}) { const response = await fetch(url, options); const data = await response.json(); if (!response.ok) { const error = new Error(data.error || "Request failed"); error.code = data.code; throw error; } return data; }
 function numericWeight(value) {
@@ -185,10 +212,7 @@ async function selectFurnace(button, recoveredMelt) {
     if (!melt && allocation.configured) $("product-selector-title").textContent = `${mainState.furnace.name} products - ${allocation.melt_number}`;
     updateProductStageActions();
   } catch (error) {
-    const message = $("capture-message");
-    message.className = "capture-message failure";
-    message.textContent = error.message;
-    message.hidden = false;
+    showMessage(error.message, "failure", 2000);
   } finally {
     selectingFurnace = false;
     button.disabled = false;
@@ -199,7 +223,7 @@ async function captureWeight(button) {
   capturingWeight = true;
   $("furnace-back").disabled = true;
   $("complete-melt-button").disabled = true;
-  const message = $("capture-message"); message.hidden = true; button.disabled = true;
+  hideMessage(); button.disabled = true;
   try {
     if (!mainState.furnace) throw new Error("Select a furnace before selecting an image");
     const material = mainState.allocation?.materials.find(row => row.id === Number(button.dataset.id));
@@ -236,10 +260,11 @@ async function captureWeight(button) {
     await refreshAllocation();
   } catch (error) {
     if (error.code === "threshold_exceeded" || error.code === "allocation_exceeded" || error.code === "allocation_required") {
+      hideMessage();
       $("threshold-dialog-message").textContent = error.message;
       $("threshold-dialog").showModal();
     } else {
-      message.className = "capture-message failure"; message.textContent = error.message; message.hidden = false;
+      showMessage(error.message, "failure", 2000);
     }
   }
   finally {
@@ -251,6 +276,7 @@ async function captureWeight(button) {
 }
 function showCaptureSuccess(result) {
   clearInterval(successTimer);
+  hideMessage();
   $("success-image").src = result.image_url;
   $("success-image").alt = result.image_name;
   $("success-name").textContent = result.image_name;
@@ -288,8 +314,7 @@ $("cancel-capture-button").addEventListener("click", async () => {
     }
     clearInterval(successTimer); pendingCaptureId = null; $("capture-success-screen").hidden = true;
     await refreshAllocation();
-    const message = $("capture-message"); message.className = "capture-message failure"; message.textContent = "Capture cancelled"; message.hidden = false;
-    setTimeout(() => { message.hidden = true; }, 2000);
+    showMessage("Capture cancelled", "failure", 2000);
   } catch (error) { button.disabled = false; button.textContent = error.message; }
 });
 function requestMeltCompletion() {
@@ -318,16 +343,9 @@ async function completeActiveMelt() {
     $("main-product-context").hidden = true;
     $("furnace-selector").hidden = false;
     updateCompleteButtons();
-    const message = $("capture-message");
-    message.className = "capture-message success";
-    message.textContent = `${result.melt_number} completed: ${result.melt_count} product(s), ${formatWeight(result.melt_total_weight)} kg total`;
-    message.hidden = false;
-    setTimeout(() => { message.hidden = true; }, 3500);
+    showMessage(`${result.melt_number} completed: ${result.melt_count} product(s), ${formatWeight(result.melt_total_weight)} kg total`, "success", 2000);
   } catch (error) {
-    const message = $("capture-message");
-    message.className = "capture-message failure";
-    message.textContent = error.message;
-    message.hidden = false;
+    showMessage(error.message, "failure", 2000);
   } finally {
     $("furnace-back").disabled = false;
     buttons.forEach(button => { button.disabled = false; });
@@ -340,7 +358,7 @@ $("furnace-back").addEventListener("click", () => {
   if (capturingWeight || $("furnace-back").disabled) return;
   mainState.furnace = null;
   mainState.activeMelt = null;
-  $("capture-message").hidden = true;
+  hideMessage();
   $("product-selector").hidden = true;
   $("main-product-context").hidden = true;
   $("furnace-selector").hidden = false;
@@ -357,10 +375,7 @@ async function initializeMain() {
       if (button) await selectFurnace(button, melt);
     }
   } catch (error) {
-    const message = $("capture-message");
-    message.className = "capture-message failure";
-    message.textContent = error.message;
-    message.hidden = false;
+    showMessage(error.message, "failure", 2000);
     return;
   }
   try {

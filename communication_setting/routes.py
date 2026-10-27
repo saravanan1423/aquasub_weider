@@ -91,9 +91,11 @@ def shifts():
 def current_shift():
     with database_connection() as connection:
         shift = active_shift(connection)
+        user = connection.execute("SELECT keyboard_enabled FROM users WHERE id=?", (session["user_id"],)).fetchone() if session.get("user_id") else None
     if shift["active"] and "shift_ends_at" not in session:
         session["shift_ends_at"] = shift["ends_at"]
     shift["session_ends_at"] = session.get("shift_ends_at")
+    shift["keyboard_enabled"] = bool(user["keyboard_enabled"]) if user else True
     return jsonify(shift)
 
 

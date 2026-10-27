@@ -254,6 +254,7 @@ def users():
                 item=dict(user)
                 item["show_in_login"]=bool(item.get("show_in_login",0))
                 item["default_screen"]=item.get("default_screen") or "main"
+                item["keyboard_enabled"]=bool(item.get("keyboard_enabled",1))
                 item["permissions"]=[row["screen"] for row in connection.execute("SELECT screen FROM user_permissions WHERE user_id=? ORDER BY screen",(user["id"],))]
                 result.append(item)
         return jsonify(result)
@@ -266,10 +267,12 @@ def users():
             default_screen = "allocation"
         show_in_login=payload.get("show_in_login",False)
         if not isinstance(show_in_login,bool): raise ValueError("Choose whether to show this user at login")
+        keyboard_enabled=payload.get("keyboard_enabled",True)
+        if not isinstance(keyboard_enabled,bool): raise ValueError("Choose whether to enable the on-screen keyboard for this user")
         if not re.fullmatch(r"[A-Za-z0-9_.-]{3,50}",username): raise ValueError("Username must be 3–50 characters using letters, numbers, dot, dash, or underscore")
         if len(password)<6: raise ValueError("Password must contain at least 6 characters")
         with database_connection() as connection:
-            user_id=connection.execute("INSERT INTO users (username,password_hash,role,show_in_login,default_screen,created_at) VALUES (?,?,'user',?,?,?)",(username,generate_password_hash(password),int(show_in_login),default_screen,datetime.now().astimezone().isoformat(timespec="seconds"))).lastrowid
+            user_id=connection.execute("INSERT INTO users (username,password_hash,role,show_in_login,default_screen,keyboard_enabled,created_at) VALUES (?,?,'user',?,?,?,?)",(username,generate_password_hash(password),int(show_in_login),default_screen,int(keyboard_enabled),datetime.now().astimezone().isoformat(timespec="seconds"))).lastrowid
             connection.executemany("INSERT INTO user_permissions (user_id,screen) VALUES (?,?)",[(user_id,screen) for screen in allowed])
     except sqlite3.IntegrityError: return jsonify({"ok":False,"error":"That username already exists"}),409
     except ValueError as error: return jsonify({"ok":False,"error":str(error)}),400
@@ -277,7 +280,7 @@ def users():
 @admin_bp.route("/api/users/<int:user_id>",methods=["PUT","DELETE"])
 def user(user_id):
     with database_connection() as connection:
-        existing=connection.execute("SELECT id,username,role,show_in_login FROM users WHERE id=?",(user_id,)).fetchone()
+        existing=connection.execute("SELECT id,username,role,show_in_login,default_screen,keyboard_enabled FROM users WHERE id=?",(user_id,)).fetchone()
         old_permissions=[row["screen"] for row in connection.execute("SELECT screen FROM user_permissions WHERE user_id=? ORDER BY screen",(user_id,))]
     if existing is None: return jsonify({"ok":False,"error":"User not found"}),404
     if existing["role"]=="admin": return jsonify({"ok":False,"error":"The administrator account cannot be changed or deleted"}),400
@@ -297,15 +300,18 @@ def user(user_id):
             default_screen = "main"
         show_in_login=payload.get("show_in_login",bool(existing["show_in_login"]))
         if not isinstance(show_in_login,bool): raise ValueError("Choose whether to show this user at login")
+        existing_keyboard_enabled = bool(existing_dict.get("keyboard_enabled", 1))
+        keyboard_enabled = payload.get("keyboard_enabled", existing_keyboard_enabled)
+        if not isinstance(keyboard_enabled, bool): raise ValueError("Choose whether to enable the on-screen keyboard for this user")
         if not re.fullmatch(r"[A-Za-z0-9_.-]{3,50}",username): raise ValueError("Enter a valid username")
         if password and len(password)<6: raise ValueError("Password must contain at least 6 characters")
         with database_connection() as connection:
-            if password: connection.execute("UPDATE users SET username=?,password_hash=?,show_in_login=?,default_screen=? WHERE id=?",(username,generate_password_hash(password),int(show_in_login),default_screen,user_id))
-            else: connection.execute("UPDATE users SET username=?,show_in_login=?,default_screen=? WHERE id=?",(username,int(show_in_login),default_screen,user_id))
+            if password: connection.execute("UPDATE users SET username=?,password_hash=?,show_in_login=?,default_screen=?,keyboard_enabled=? WHERE id=?",(username,generate_password_hash(password),int(show_in_login),default_screen,int(keyboard_enabled),user_id))
+            else: connection.execute("UPDATE users SET username=?,show_in_login=?,default_screen=?,keyboard_enabled=? WHERE id=?",(username,int(show_in_login),default_screen,int(keyboard_enabled),user_id))
             connection.execute("DELETE FROM user_permissions WHERE user_id=?",(user_id,)); connection.executemany("INSERT INTO user_permissions (user_id,screen) VALUES (?,?)",[(user_id,screen) for screen in allowed])
     except sqlite3.IntegrityError: return jsonify({"ok":False,"error":"That username already exists"}),409
     except ValueError as error: return jsonify({"ok":False,"error":str(error)}),400
-    before={"username":existing["username"],"permissions":old_permissions,"show_in_login":bool(existing["show_in_login"]),"default_screen":existing_default_screen}
-    after={"username":username,"permissions":sorted(allowed),"show_in_login":show_in_login,"default_screen":default_screen}
+    before={"username":existing["username"],"permissions":old_permissions,"show_in_login":bool(existing["show_in_login"]),"default_screen":existing_default_screen,"keyboard_enabled":existing_keyboard_enabled}
+    after={"username":username,"permissions":sorted(allowed),"show_in_login":show_in_login,"default_screen":default_screen,"keyboard_enabled":keyboard_enabled}
     record_changes("users",user_id,"update",before,after)
     return jsonify({"ok":True})

@@ -9,4 +9,5 @@
   </nav>
 </aside>
 <link rel="stylesheet" href="{{ url_for('static', filename='branding.css', v='6') }}">
+<script>document.documentElement.dataset.keyboard = "{{ 'true' if keyboard_enabled else 'false' }}";</script>
 {% if request.path in ['/', '/communication'] %}<script src="{{ url_for('static', filename='scale_status.js', v='3') }}" data-raw-scale-page="{{ 'true' if request.path == '/communication' else 'false' }}"></script>{% endif %}

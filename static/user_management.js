@@ -73,6 +73,15 @@ async function loadUsers() {
     loginLabel.append(checkbox, ' Show in login dropdown');
     container.appendChild(loginLabel);
 
+    const keyboardLabel = document.createElement('label');
+    keyboardLabel.className = 'keyboard-visibility';
+    const keyboardCheckbox = document.createElement('input');
+    keyboardCheckbox.type = 'checkbox';
+    keyboardCheckbox.className = 'enable-keyboard';
+    keyboardCheckbox.checked = user.keyboard_enabled !== false && user.keyboard_enabled !== 0;
+    keyboardLabel.append(keyboardCheckbox, ' Enable on-screen keyboard');
+    container.appendChild(keyboardLabel);
+
     const permInputs = row.querySelectorAll('.user-permissions input');
     const select = defLabel.querySelector('.user-default-screen');
     permInputs.forEach(input => {
@@ -98,6 +107,7 @@ async function saveUser(row) {
         username: row.querySelector('.user-name').value,
         password: row.querySelector('.new-user-password').value,
         show_in_login: row.querySelector('.show-in-login').checked,
+        keyboard_enabled: row.querySelector('.enable-keyboard') ? row.querySelector('.enable-keyboard').checked : true,
         default_screen: row.querySelector('.user-default-screen')?.value || 'main',
         permissions: [...row.querySelectorAll('.user-permissions input:checked')].map(item => item.value)
       })
@@ -132,11 +142,13 @@ $("create-user-form")?.addEventListener('submit', async event => {
         username: $("new-username").value,
         password: $("new-password").value,
         show_in_login: $("show-in-login").checked,
+        keyboard_enabled: $("enable-keyboard") ? $("enable-keyboard").checked : true,
         default_screen: $("new-default-screen")?.value || 'main',
         permissions: [...form.querySelectorAll('fieldset input:checked')].map(item => item.value)
       })
     });
     form.reset();
+    if ($("enable-keyboard")) $("enable-keyboard").checked = true;
     message('User created successfully');
     await loadUsers();
   } catch (error) {

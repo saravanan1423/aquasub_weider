@@ -20,6 +20,10 @@
       if (response.status === 401) { window.location.assign("/login"); return; }
       if (!response.ok) return;
       const shift = await response.json();
+      if (typeof shift.keyboard_enabled === "boolean") {
+        document.documentElement.dataset.keyboard = String(shift.keyboard_enabled);
+        if (!shift.keyboard_enabled) panel.hidden = true;
+      }
       shiftEndsAt = shift.session_ends_at ? Date.parse(shift.session_ends_at) : null;
       if (shiftEndsAt && Date.now() >= shiftEndsAt) { logoutAtShiftEnd(); return; }
       scheduleShiftLogout();
@@ -139,7 +143,14 @@
       else insert(key==="space" ? " " : shifted ? key.toUpperCase() : key);
     }));
   }
+  function isKeyboardEnabled() {
+    return document.documentElement.dataset.keyboard !== "false";
+  }
   function openKeyboard(element) {
+    if (!isKeyboardEnabled()) {
+      panel.hidden = true;
+      return;
+    }
     if (!accepted(element)) return;
     const redraw = target !== element || panel.hidden;
     target=element;
